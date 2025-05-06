@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="jp">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>App</title>
+</head>
+<body>
+    <div id="app"></div>
+
+    <script>
+        let intervalId;
+        let currentNo = 1;
+
+        async function loadAndDisplayJson(targetNo) {
+            try {
+                const response = await fetch("./word.json"); // JSONファイルのパス
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                const word = await response.json();
+                let wordfind = word.filter((item) => item.No >= 1 && item.No <= 20);
+
+                wordfind = wordfind.filter((item) => item.No == targetNo);
+
+                console.log(wordfind);
+                const jsonDataElement = document.getElementById("app");
+                jsonDataElement.style.fontSize = "3px";
+                jsonDataElement.innerText = JSON.stringify(wordfind, null, 2);
+            } catch (error) {
+                const jsonDataElement = document.getElementById("app");
+                jsonDataElement.innerHTML = `<p>Error loading JSON: ${error}</p>`;
+                console.error("Error loading JSON:", error);
+            }
+        }
+
+        function startInterval() {
+            intervalId = setInterval(() => {
+                loadAndDisplayJson(currentNo);
+                currentNo++;
+                if (currentNo > 20) {
+                    currentNo = 1; // 必要に応じてリセット
+                    clearInterval(intervalId); // 10回で停止する場合
+                }
+            }, 2000);
+        }
+
+        loadAndDisplayJson(currentNo); // ページロード時に最初の値を表示
+        startInterval();
+    </script>
+</body>
+</html>
