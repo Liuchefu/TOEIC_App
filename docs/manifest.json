@@ -2,7 +2,7 @@
   "name": "My Offline App",
   "short_name": "OfflineApp",
   "description": "A simple offline HTML application",
-  "start_url": "/TOEIC_App/",
+  "start_url": "/TOEIC_App/index.html",
   "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#000000",
