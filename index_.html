@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>CSV to JSON Converter (Character Encoding Support)</title>
+<style>
+body {
+    font-family: sans-serif;
+}
+#output {
+    white-space: pre-wrap;
+    font-family: monospace;
+}
+#encodingSelect {
+    margin-bottom: 10px;
+}
+</style>
+</head>
+<body>
+
+<h1>CSV to JSON Converter (Character Encoding Support)</h1>
+
+<input type="file" id="csvFile" accept=".csv">
+<select id="encodingSelect">
+    <option value="utf-8" selected>UTF-8</option>
+    <option value="shift-jis">Shift-JIS</option>
+    <option value="euc-jp">EUC-JP</option>
+    <option value="iso-8859-1">ISO-8859-1</option>
+</select>
+<button onclick="convertCsvToJson()">Convert to JSON</button>
+
+<h2>JSON Output:</h2>
+<pre id="output"></pre>
+
+<script>
+async function convertCsvToJson() {
+    const fileInput = document.getElementById('csvFile');
+    const outputElement = document.getElementById('output');
+    const encodingSelect = document.getElementById('encodingSelect');
+    const file = fileInput.files[0];
+    const selectedEncoding = encodingSelect.value;
+
+    if (!file) {
+        outputElement.textContent = 'Please select a CSV file.';
+        return;
+    }
+
+    const reader = new FileReader();
+
+    reader.onload = async function(event) {
+        const arrayBuffer = event.target.result;
+        const decoder = new TextDecoder(selectedEncoding);
+        const csvText = decoder.decode(arrayBuffer);
+
+        const lines = csvText.trim().split('\n');
+        if (lines.length < 1) {
+            outputElement.textContent = 'The CSV file is empty or has no valid lines.';
+            return;
+        }
+
+        const headers = lines[0].split(',');
+        const jsonArray = [];
+
+        for (let i = 1; i < lines.length; i++) {
+            const currentLine = lines[i].split(',');
+            if (currentLine.length === headers.length) {
+                const jsonObject = {};
+                for (let j = 0; j < headers.length; j++) {
+                    jsonObject[headers[j].trim()] = currentLine[j].trim();
+                }
+                jsonArray.push(jsonObject);
+            } else if (currentLine.length > 0) {
+                outputElement.textContent = `Error: Line ${i + 1} has a different number of columns than the header.`;
+                return;
+            }
+        }
+
+        outputElement.textContent = JSON.stringify(jsonArray, null, 2);
+    };
+
+    reader.onerror = function() {
+        outputElement.textContent = 'Error reading the CSV file.';
+    };
+
+    reader.readAsArrayBuffer(file);
+}
+</script>
+
+</body>
+</html>

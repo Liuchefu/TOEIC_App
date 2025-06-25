@@ -1,89 +1,7734 @@
 <!DOCTYPE html>
-<html>
-<head>
-<title>CSV to JSON Converter (Character Encoding Support)</title>
-<style>
-body {
-    font-family: sans-serif;
-}
-#output {
-    white-space: pre-wrap;
-    font-family: monospace;
-}
-#encodingSelect {
-    margin-bottom: 10px;
-}
-</style>
-</head>
-<body>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>単語学習アプリ</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="./tailwindcss.js"></script>
+    <!-- <script src="https://cdn.tailwindcss.com"></script> -->
+    <!-- Tone.js CDN for background music -->
+    <script src="./Tone.min.js"></script>
+    <!-- <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.min.js"></script> -->
+    <link rel="manifest" href="/manifest.json" />
+    <link rel="apple-touch-icon" href="/icon-192x192.png" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black" />
+    <script>
+      if ("serviceWorker" in navigator) {
+        window.addEventListener("load", () => {
+          navigator.serviceWorker
+            .register("/sw.js")
+            .then((registration) => {
+              console.log("Service Worker registered: ", registration);
+            })
+            .catch((error) => {
+              console.log("Service Worker registration failed: ", error);
+            });
+        });
+      }
+    </script>
+    <style>
+      @import url("./leapis.css");
+      body {
+        font-family: "Inter", sans-serif;
+        background-color: #f3f4f6; /* Light gray background */
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        min-height: 100vh;
+        margin: 0;
+        padding: 20px;
+        box-sizing: border-box;
+      }
+      .container {
+        background-color: #ffffff;
+        border-radius: 1.5rem; /* Rounded corners for the container */
+        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1),
+          0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        width: 100%;
+        max-width: 900px; /* Wider to accommodate word edit table */
+        padding: 2rem;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        min-height: 450px; /* Ensure container has a minimum height */
+        position: relative;
+      }
+      .word-display {
+        font-size: 3rem; /* Large font for the word */
+        font-weight: 700;
+        color: #1f2937; /* Dark gray for text */
+        margin-bottom: 1.5rem;
+        cursor: pointer; /* Indicate it's clickable */
+      }
+      .definitions {
+        font-size: 1.25rem;
+        color: #4b5563; /* Medium gray for definitions */
+        line-height: 1.6;
+        min-height: 100px; /* Reserve space for definitions */
+      }
+      .buttons-container {
+        display: flex;
+        gap: 1rem; /* Space between buttons */
+        margin-top: 2rem;
+        width: 100%;
+        justify-content: center;
+      }
+      .action-button {
+        padding: 0.75rem 1.5rem;
+        border-radius: 9999px; /* Fully rounded buttons */
+        font-weight: 600;
+        font-size: 1rem;
+        cursor: pointer;
+        transition: all 0.2s ease-in-out;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1),
+          0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        flex: 1; /* Make buttons take equal space */
+        max-width: 180px; /* Limit button width */
+      }
+      .button-easy {
+        background-color: #34d399; /* Green for easy */
+        color: #ffffff;
+      }
+      .button-easy:hover {
+        background-color: #10b981;
+        transform: translateY(-2px);
+      }
+      .button-hard {
+        background-color: #ef4444; /* Red for hard */
+        color: #ffffff;
+      }
+      .button-hard:hover {
+        background-color: #dc2626;
+        transform: translateY(-2px);
+      }
+      .button-show-answer {
+        background-color: #60a5fa; /* Blue for show answer */
+        color: #ffffff;
+        margin-top: 1rem;
+      }
+      .button-show-answer:hover {
+        background-color: #3b82f6;
+        transform: translateY(-2px);
+      }
+      .progress-text {
+        margin-top: 1rem;
+        font-size: 0.9rem;
+        color: #6b7280;
+      }
+      .nav-buttons-container {
+        position: absolute;
+        top: 1rem;
+        right: 1rem;
+        display: flex;
+        gap: 0.5rem;
+        flex-wrap: wrap; /* Allow buttons to wrap on smaller screens */
+        justify-content: flex-end; /* Align to the right */
+      }
+      .nav-button {
+        background-color: #9ca3af;
+        color: #ffffff;
+        padding: 0.5rem 1rem;
+        border-radius: 0.75rem;
+        font-size: 0.8rem;
+        cursor: pointer;
+        transition: background-color 0.2s ease-in-out;
+        white-space: nowrap; /* Prevent text wrapping */
+      }
+      .nav-button:hover {
+        background-color: #6b7280;
+      }
+      .add-word-form {
+        width: 100%;
+        text-align: left;
+        overflow-y: auto; /* Enable scrolling for form */
+        max-height: calc(100vh - 100px); /* Limit height to fit screen */
+        padding-right: 10px; /* Space for scrollbar */
+      }
+      .add-word-form label {
+        display: block;
+        font-weight: 600;
+        margin-bottom: 0.5rem;
+        color: #374151;
+        margin-top: 1rem;
+      }
+      .add-word-form input[type="text"] {
+        width: calc(100% - 20px); /* Adjust for padding */
+        padding: 0.75rem;
+        border: 1px solid #d1d5db;
+        border-radius: 0.5rem;
+        font-size: 1rem;
+        color: #1f2937;
+        background-color: #f9fafb;
+        box-sizing: border-box; /* Include padding in width */
+      }
+      .add-word-form input[type="text"]:focus {
+        outline: none;
+        border-color: #60a5fa;
+        box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.5);
+      }
+      .add-word-form .submit-button {
+        background-color: #10b981;
+        color: #ffffff;
+        padding: 0.75rem 1.5rem;
+        border-radius: 9999px;
+        font-weight: 600;
+        font-size: 1rem;
+        cursor: pointer;
+        transition: all 0.2s ease-in-out;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1),
+          0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        margin-top: 2rem;
+        width: auto;
+        display: inline-block; /* To center it */
+      }
+      .add-word-form .submit-button:hover {
+        background-color: #059669;
+        transform: translateY(-2px);
+      }
+      .message-box {
+        background-color: #d1fae5; /* Light green for success */
+        color: #065f46; /* Dark green text */
+        padding: 1rem;
+        border-radius: 0.75rem;
+        margin-top: 1.5rem;
+        border: 1px solid #a7f3d0;
+        display: none; /* Hidden by default */
+      }
 
-<h1>CSV to JSON Converter (Character Encoding Support)</h1>
+      /* Word List View */
+      .word-list-view {
+        width: 100%;
+        text-align: left;
+        overflow-y: auto; /* Enable scrolling for list */
+        max-height: calc(100vh - 150px); /* Limit height to fit screen */
+        padding-right: 10px; /* Space for scrollbar */
+      }
+      .word-list-item {
+        background-color: #f9fafb;
+        border: 1px solid #e5e7eb;
+        border-radius: 0.75rem;
+        padding: 1rem;
+        margin-bottom: 1rem;
+        box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+      }
+      .word-list-item h3 {
+        font-size: 1.5rem;
+        font-weight: 600;
+        color: #1f2937;
+        margin-bottom: 0.5rem;
+      }
+      .word-list-item p {
+        font-size: 0.9rem;
+        color: #4b5563;
+        margin-bottom: 0.25rem;
+        line-height: 1.4;
+      }
+      .word-list-item .word-status {
+        font-size: 0.8rem;
+        color: #6b7280;
+        margin-top: 0.5rem;
+        text-align: right;
+      }
 
-<input type="file" id="csvFile" accept=".csv">
-<select id="encodingSelect">
-    <option value="utf-8" selected>UTF-8</option>
-    <option value="shift-jis">Shift-JIS</option>
-    <option value="euc-jp">EUC-JP</option>
-    <option value="iso-8859-1">ISO-8859-1</option>
-</select>
-<button onclick="convertCsvToJson()">Convert to JSON</button>
+      /* Word Edit View (Table) */
+      .word-edit-view {
+        width: 100%;
+        text-align: left;
+        overflow-x: auto; /* Enable horizontal scrolling for table */
+        max-height: calc(100vh - 150px); /* Limit height to fit screen */
+        padding-bottom: 10px; /* Space for horizontal scrollbar */
+      }
+      .word-edit-view table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 1rem;
+      }
+      .word-edit-view th,
+      .word-edit-view td {
+        border: 1px solid #e5e7eb;
+        padding: 0.75rem;
+        text-align: left;
+        vertical-align: top;
+        white-space: nowrap; /* Prevent text wrapping in cells */
+      }
+      .word-edit-view th {
+        background-color: #f3f4f6;
+        font-weight: 600;
+        color: #374151;
+        position: sticky; /* Sticky header */
+        top: 0;
+        z-index: 10;
+      }
+      .word-edit-view td input[type="text"] {
+        width: 100%;
+        padding: 0.5rem;
+        border: 1px solid #d1d5db;
+        border-radius: 0.25rem;
+        font-size: 0.9rem;
+        box-sizing: border-box;
+      }
+      .word-edit-view .edit-buttons {
+        display: flex;
+        gap: 0.5rem;
+        white-space: nowrap;
+      }
+      .word-edit-view .edit-button {
+        padding: 0.4rem 0.8rem;
+        border-radius: 0.5rem;
+        font-size: 0.8rem;
+        cursor: pointer;
+        transition: background-color 0.2s ease-in-out;
+        box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+      }
+      .word-edit-view .save-button {
+        background-color: #3b82f6; /* Blue for save */
+        color: #ffffff;
+      }
+      .word-edit-view .save-button:hover {
+        background-color: #2563eb;
+      }
+      .word-edit-view .delete-button {
+        background-color: #f87171; /* Red for delete */
+        color: #ffffff;
+      }
+      .word-edit-view .delete-button:hover {
+        background-color: #ef4444;
+      }
 
-<h2>JSON Output:</h2>
-<pre id="output"></pre>
+      /* Test by Range View */
+      .test-by-range-view {
+        width: 100%;
+        text-align: left;
+        overflow-y: auto;
+        max-height: calc(100vh - 150px);
+        padding-right: 10px;
+      }
+      .test-by-range-view .controls {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+        align-items: center;
+      }
+      .test-by-range-view .input-group {
+        display: flex;
+        gap: 1rem;
+        align-items: center;
+        justify-content: center;
+        flex-wrap: wrap;
+      }
+      .test-by-range-view .input-group label {
+        font-weight: 600;
+        color: #374151;
+        white-space: nowrap;
+      }
+      .test-by-range-view .input-group input[type="number"],
+      .test-by-range-view .input-group select {
+        padding: 0.5rem;
+        border: 1px solid #d1d5db;
+        border-radius: 0.5rem;
+        font-size: 1rem;
+        width: 80px; /* Fixed width for number inputs */
+        text-align: center;
+        background-color: #f9fafb;
+      }
+      .test-by-range-view .generate-test-button {
+        background-color: #1d4ed8;
+        color: #ffffff;
+        padding: 0.75rem 1.5rem;
+        border-radius: 9999px;
+        font-weight: 600;
+        font-size: 1rem;
+        cursor: pointer;
+        transition: all 0.2s ease-in-out;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1),
+          0 2px 4px -1px rgba(0, 0, 0, 0.06);
+      }
+      .test-by-range-view .generate-test-button:hover {
+        background-color: #1e40af;
+        transform: translateY(-2px);
+      }
+      .test-by-range-view table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 1rem;
+      }
+      .test-by-range-view th,
+      .test-by-range-view td {
+        border: 1px solid #e5e7eb;
+        padding: 0.75rem;
+        text-align: left;
+        vertical-align: top;
+      }
+      .test-by-range-view th {
+        background-color: #f3f4f6;
+        font-weight: 600;
+        color: #374151;
+        position: sticky;
+        top: 0;
+        z-index: 10;
+      }
+      .test-by-range-view td input[type="text"],
+      .test-by-range-view td textarea {
+        width: 100%;
+        padding: 0.5rem;
+        border: 1px solid #d1d5db;
+        border-radius: 0.25rem;
+        font-size: 0.9rem;
+        box-sizing: border-box;
+        background-color: #f9fafb;
+      }
+      .test-by-range-view .check-answers-button {
+        background-color: #22c55e;
+        color: #ffffff;
+        padding: 0.75rem 1.5rem;
+        border-radius: 9999px;
+        font-weight: 600;
+        font-size: 1rem;
+        cursor: pointer;
+        transition: all 0.2s ease-in-out;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1),
+          0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        margin-top: 2rem;
+        width: auto;
+        display: inline-block;
+      }
+      .test-by-range-view .check-answers-button:hover {
+        background-color: #16a34a;
+        transform: translateY(-2px);
+      }
+      .test-by-range-view .result-correct {
+        color: #10b981; /* Green for correct */
+        font-weight: 600;
+      }
+      .test-by-range-view .result-incorrect {
+        color: #ef4444; /* Red for incorrect */
+        font-weight: 600;
+      }
+      .test-by-range-view .correct-answer-display {
+        font-size: 0.8rem;
+        color: #6b7280;
+        margin-top: 0.25rem;
+      }
 
-<script>
-async function convertCsvToJson() {
-    const fileInput = document.getElementById('csvFile');
-    const outputElement = document.getElementById('output');
-    const encodingSelect = document.getElementById('encodingSelect');
-    const file = fileInput.files[0];
-    const selectedEncoding = encodingSelect.value;
+      /* BGM button specific style */
+      #bgmToggleButton {
+        background-color: #f97316; /* Orange */
+        color: #ffffff;
+        padding: 0.5rem 1rem;
+        border-radius: 0.75rem;
+        font-size: 0.8rem;
+        cursor: pointer;
+        transition: background-color 0.2s ease-in-out;
+        white-space: nowrap;
+      }
+      #bgmToggleButton:hover {
+        background-color: #ea580c;
+      }
 
-    if (!file) {
-        outputElement.textContent = 'Please select a CSV file.';
-        return;
-    }
+      /* Utility classes for toggling views */
+      .hidden {
+        display: none;
+      }
 
-    const reader = new FileReader();
+      @media (max-width: 768px) {
+        .container {
+          padding: 1.5rem;
+          max-width: 100%; /* Full width on smaller screens */
+        }
+        .nav-buttons-container {
+          position: static;
+          margin-bottom: 1rem;
+          justify-content: center;
+          flex-direction: column; /* Stack buttons vertically */
+          align-items: center;
+        }
+        .nav-button {
+          width: 80%; /* Make nav buttons wider */
+        }
+        #bgmToggleButton {
+          width: 80%; /* Make BGM button wider on mobile */
+        }
+        .word-display {
+          font-size: 2.5rem;
+        }
+        .definitions {
+          font-size: 1rem;
+        }
+        .action-button {
+          padding: 0.6rem 1.2rem;
+          font-size: 0.9rem;
+        }
+        .buttons-container {
+          flex-direction: column;
+          gap: 0.75rem;
+          align-items: center;
+        }
+        .action-button {
+          width: 80%;
+          max-width: none;
+        }
+        .add-word-form input[type="text"] {
+          width: 100%;
+        }
+        .add-word-form,
+        .word-list-view,
+        .word-edit-view,
+        .test-by-range-view {
+          max-height: calc(100vh - 120px);
+          padding-right: 0; /* Remove scrollbar padding on mobile */
+        }
+        .word-edit-view table,
+        .test-by-range-view table {
+          font-size: 0.8rem; /* Smaller font in table for mobile */
+        }
+        .word-edit-view th,
+        .word-edit-view td,
+        .test-by-range-view th,
+        .test-by-range-view td {
+          padding: 0.5rem; /* Smaller padding */
+        }
+        .word-edit-view .edit-button,
+        .test-by-range-view .generate-test-button,
+        .test-by-range-view .check-answers-button {
+          padding: 0.3rem 0.6rem;
+          font-size: 0.7rem;
+        }
+        .test-by-range-view .input-group {
+          flex-direction: column;
+          gap: 0.5rem;
+        }
+        .test-by-range-view .input-group input[type="number"],
+        .test-by-range-view .input-group select {
+          width: 100px; /* Adjust width for better fit on small screens */
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="app" class="container">
+      <!-- Navigation Buttons -->
+      <div class="nav-buttons-container">
+        <button id="showLearningViewButton" class="nav-button">
+          学習モード
+        </button>
+        <button id="showAddWordViewButton" class="nav-button">単語追加</button>
+        <button id="showWordListViewButton" class="nav-button">単語一覧</button>
+        <button id="showWordEditViewButton" class="nav-button">単語編集</button>
+        <button id="showTestByRangeViewButton" class="nav-button">
+          範囲テスト
+        </button>
+        <button id="bgmToggleButton">BGM ON/OFF</button>
+      </div>
 
-    reader.onload = async function(event) {
-        const arrayBuffer = event.target.result;
-        const decoder = new TextDecoder(selectedEncoding);
-        const csvText = decoder.decode(arrayBuffer);
+      <!-- Learning View -->
+      <div id="learningView">
+        <div id="wordDisplay" class="word-display"></div>
+        <div id="definitionsDisplay" class="definitions hidden"></div>
+        <button id="showAnswerButton" class="action-button button-show-answer">
+          解答を見る
+        </button>
+        <div id="actionButtons" class="buttons-container hidden">
+          <button id="hardButton" class="action-button button-hard">
+            難しい
+          </button>
+          <button id="easyButton" class="action-button button-easy">
+            簡単
+          </button>
+        </div>
+        <div id="progressText" class="progress-text"></div>
+      </div>
 
-        const lines = csvText.trim().split('\n');
-        if (lines.length < 1) {
-            outputElement.textContent = 'The CSV file is empty or has no valid lines.';
+      <!-- Add Word View -->
+      <div id="addWordView" class="add-word-form hidden">
+        <h2 class="text-2xl font-bold mb-4 text-gray-800">新しい単語を追加</h2>
+        <form id="addWordForm" class="text-left">
+          <label for="newWord">単語:</label>
+          <input
+            type="text"
+            id="newWord"
+            name="単語"
+            placeholder="例: order"
+            required
+            class="mb-2"
+          />
+
+          <label for="newNoun">名詞:</label>
+          <input
+            type="text"
+            id="newNoun"
+            name="名詞"
+            placeholder="例: 注文・命令"
+            class="mb-2"
+          />
+
+          <label for="newVerb">動詞:</label>
+          <input
+            type="text"
+            id="newVerb"
+            name="動詞"
+            placeholder="例: ～を注文する"
+            class="mb-2"
+          />
+
+          <label for="newAdjective">形容詞:</label>
+          <input type="text" id="newAdjective" name="形容詞" class="mb-2" />
+
+          <label for="newAdverb">副詞:</label>
+          <input type="text" id="newAdverb" name="副詞" class="mb-2" />
+
+          <label for="newPreposition">前置詞:</label>
+          <input type="text" id="newPreposition" name="前置詞" class="mb-2" />
+
+          <label for="newConjunction">接続詞:</label>
+          <input type="text" id="newConjunction" name="接続詞" class="mb-2" />
+
+          <button type="submit" class="submit-button">単語を追加</button>
+        </form>
+        <div id="messageBox" class="message-box"></div>
+      </div>
+
+      <!-- Word List View -->
+      <div id="wordListView" class="word-list-view hidden">
+        <h2 class="text-2xl font-bold mb-4 text-gray-800">単語一覧</h2>
+        <div id="wordListContent">
+          <!-- 単語リストがここに動的に生成されます -->
+        </div>
+        <div id="noWordsMessage" class="text-center text-gray-500 mt-8 hidden">
+          登録されている単語がありません。
+        </div>
+      </div>
+
+      <!-- Word Edit View -->
+      <div id="wordEditView" class="word-edit-view hidden">
+        <h2 class="text-2xl font-bold mb-4 text-gray-800">単語を編集・削除</h2>
+        <table id="wordEditTable" class="min-w-full bg-white">
+          <thead>
+            <tr>
+              <th>単語</th>
+              <th>名詞</th>
+              <th>動詞</th>
+              <th>形容詞</th>
+              <th>副詞</th>
+              <th>前置詞</th>
+              <th>接続詞</th>
+              <th>操作</th>
+            </tr>
+          </thead>
+          <tbody id="wordEditTableBody">
+            <!-- 単語編集行がここに動的に生成されます -->
+          </tbody>
+        </table>
+        <div
+          id="noWordsEditMessage"
+          class="text-center text-gray-500 mt-8 hidden"
+        >
+          編集できる単語がありません。
+        </div>
+        <div id="editMessageBox" class="message-box mt-4"></div>
+      </div>
+
+      <!-- Test by Range View -->
+      <div id="testByRangeView" class="test-by-range-view hidden">
+        <h2 class="text-2xl font-bold mb-4 text-gray-800">範囲指定テスト</h2>
+        <div class="controls">
+          <div class="input-group">
+            <label for="startNo">開始No:</label>
+            <input type="number" id="startNo" value="1" min="1" class="mb-2" />
+            <label for="endNo">終了No:</label>
+            <input type="number" id="endNo" value="100" min="1" class="mb-2" />
+          </div>
+          <div class="input-group">
+            <label for="numberOfQuestions">出題数:</label>
+            <input
+              type="number"
+              id="numberOfQuestions"
+              value="10"
+              min="1"
+              class="mb-2"
+            />
+          </div>
+          <div class="input-group">
+            <label for="testTypeSelect">テストの種類:</label>
+            <select id="testTypeSelect" class="mb-2">
+              <option value="definitionToWord">意味 → 単語</option>
+              <option value="wordToDefinition">単語 → 意味</option>
+            </select>
+          </div>
+          <button id="generateTestButton" class="generate-test-button">
+            テストを生成
+          </button>
+        </div>
+        <div id="testMessageBox" class="message-box"></div>
+        <div id="testContent">
+          <table id="testTable" class="min-w-full bg-white hidden">
+            <thead>
+              <tr id="testTableHeader">
+                <!-- ヘッダーはJSで動的に生成 -->
+              </tr>
+            </thead>
+            <tbody id="testTableBody">
+              <!-- テスト問題がここに動的に生成されます -->
+            </tbody>
+          </table>
+          <button id="checkAnswersButton" class="check-answers-button hidden">
+            答え合わせ
+          </button>
+        </div>
+        <div
+          id="noTestWordsMessage"
+          class="text-center text-gray-500 mt-8 hidden"
+        >
+          指定された範囲に単語がありません。
+        </div>
+      </div>
+    </div>
+
+    <script type="module">
+      // Firebaseの設定と初期化（今回のアプリでは使用しませんが、Firestoreを使う場合はここに記述します）
+      // const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+      // const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
+      // import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+      // import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+      // import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+      // const app = initializeApp(firebaseConfig);
+      // const db = getFirestore(app);
+      // const auth = getAuth(app);
+      // let userId = null;
+
+      // 初期化時に認証を行う（Firestoreを使用する場合）
+      // window.onload = async () => {
+      //     if (typeof __initial_auth_token !== 'undefined') {
+      //         try {
+      //             await signInWithCustomToken(auth, __initial_auth_token);
+      //             userId = auth.currentUser.uid;
+      //             console.log("Signed in with custom token:", userId);
+      //         } catch (error) {
+      //             console.error("Error signing in with custom token:", error);
+      //             await signInAnonymously(auth);
+      //             userId = auth.currentUser.uid;
+      //             console.log("Signed in anonymously:", userId);
+      //         }
+      //     } else {
+      //         await signInAnonymously(auth);
+      //         userId = auth.currentUser.uid;
+      //         console.log("Signed in anonymously:", userId);
+      //     }
+      //     // アプリの初期化とデータロードをここで行う
+      //     initializeApp();
+      // };
+
+      const initialWordsData = [
+        {
+          No: "1",
+          単語: "order",
+          名詞: "注文・命令",
+          動詞: "～を注文する",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "2",
+          単語: "meeting",
+          名詞: "会議",
+          動詞: "",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "3",
+          単語: "service",
+          名詞: "サービス",
+          動詞: "",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "4",
+          単語: "employee",
+          名詞: "従業員",
+          動詞: "",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "5",
+          単語: "department",
+          名詞: "部署",
+          動詞: "",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "6",
+          単語: "ask",
+          名詞: "",
+          動詞: "～を頼む・～を訪ねる",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "7",
+          単語: "available",
+          名詞: "",
+          動詞: "",
+          形容詞: "利用できる・手に入る",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "8",
+          単語: "customer",
+          名詞: "顧客",
+          動詞: "",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "9",
+          単語: "place",
+          名詞: "場所",
+          動詞: "~を置く",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "10",
+          単語: "travel",
+          名詞: "旅行",
+          動詞: "旅行する",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "11",
+          単語: "purchase",
+          名詞: "購入・購入品",
+          動詞: "~を購入する",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "12",
+          単語: "training",
+          名詞: "トレーニング・研修",
+          動詞: "",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "13",
+          単語: "need",
+          名詞: "必要性",
+          動詞: "",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "14",
+          単語: "book",
+          名詞: "本",
+          動詞: "~を予約する",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "15",
+          単語: "conference",
+          名詞: "会議",
+          動詞: "",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "16",
+          単語: "schedule",
+          名詞: "予定",
+          動詞: "~を予定する",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "17",
+          単語: "staff",
+          名詞: "社員・スタッフ",
+          動詞: "",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "18",
+          単語: "report",
+          名詞: "報告書",
+          動詞: "出勤する・報告する",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "19",
+          単語: "contact",
+          名詞: "連絡",
+          動詞: "～に連絡をする",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "20",
+          単語: "likely",
+          名詞: "",
+          動詞: "",
+          形容詞: "ありそうな",
+          副詞: "おそらく",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "21",
+          単語: "local",
+          名詞: "",
+          動詞: "",
+          形容詞: "地元の",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "22",
+          単語: "offer",
+          名詞: "申し出",
+          動詞: "~を提供する",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "23",
+          単語: "clerk",
+          名詞: "店員",
+          動詞: "",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "24",
+          単語: "purpose",
+          名詞: "目標",
+          動詞: "",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "25",
+          単語: "product",
+          名詞: "製品",
+          動詞: "",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "26",
+          単語: "project",
+          名詞: "計画",
+          動詞: "～を計画する",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "27",
+          単語: "request",
+          名詞: "要求",
+          動詞: "～を要求する",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "28",
+          単語: "form",
+          名詞: "用紙",
+          動詞: "~を形作る",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "29",
+          単語: "manager",
+          名詞: "部長・マネージャー",
+          動詞: "",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "30",
+          単語: "also",
+          名詞: "",
+          動詞: "",
+          形容詞: "",
+          副詞: "~もまた",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "31",
+          単語: "library",
+          名詞: "図書館",
+          動詞: "",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "32",
+          単語: "open",
+          名詞: "",
+          動詞: "~を開ける",
+          形容詞: "開いている",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "33",
+          単語: "problem",
+          名詞: "問題",
+          動詞: "",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "34",
+          単語: "photocopier",
+          名詞: "コピー機",
+          動詞: "",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "35",
+          単語: "review",
+          名詞: "批評・再検討",
+          動詞: "~を見直す",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "36",
+          単語: "each",
+          名詞: "",
+          動詞: "",
+          形容詞: "それぞれの",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "37",
+          単語: "return",
+          名詞: "返却",
+          動詞: "戻る・～を返す",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "38",
+          単語: "location",
+          名詞: "場所・店舗",
+          動詞: "",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "39",
+          単語: "receive",
+          名詞: "",
+          動詞: "~を受け取る",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "40",
+          単語: "research",
+          名詞: "研究",
+          動詞: "~を研究する",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "41",
+          単語: "check",
+          名詞: "",
+          動詞: "~をチェックする",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "42",
+          単語: "during",
+          名詞: "",
+          動詞: "",
+          形容詞: "",
+          副詞: "",
+          前置詞: "～の間",
+          接続詞: "",
+        },
+        {
+          No: "43",
+          単語: "provide",
+          名詞: "",
+          動詞: "~を提供する",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "44",
+          単語: "several",
+          名詞: "",
+          動詞: "",
+          形容詞: "いくつかの",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "45",
+          単語: "subject",
+          名詞: "件名・科目",
+          動詞: "",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "46",
+          単語: "advertisement",
+          名詞: "広告",
+          動詞: "",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "47",
+          単語: "article",
+          名詞: "記事",
+          動詞: "",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "48",
+          単語: "because",
+          名詞: "",
+          動詞: "",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "なぜなら",
+        },
+        {
+          No: "49",
+          単語: "income",
+          名詞: "収入",
+          動詞: "",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "50",
+          単語: "appointment",
+          名詞: "約束・予約",
+          動詞: "",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "51",
+          単語: "resume",
+          名詞: "履歴書",
+          動詞: "",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "52",
+          単語: "discount",
+          名詞: "割引",
+          動詞: "",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "53",
+          単語: "special",
+          名詞: "",
+          動詞: "",
+          形容詞: "特別な",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "54",
+          単語: "tour",
+          名詞: "ツアー・見学",
+          動詞: "",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "55",
+          単語: "furniture",
+          名詞: "家具",
+          動詞: "",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "56",
+          単語: "save",
+          名詞: "",
+          動詞: "~を節約する・～を保存する",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "57",
+          単語: "list",
+          名詞: "リスト・一覧",
+          動詞: "",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "58",
+          単語: "sure",
+          名詞: "",
+          動詞: "",
+          形容詞: "確かな",
+          副詞: "確かに",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "59",
+          単語: "visit",
+          名詞: "訪問",
+          動詞: "~を訪問する",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "60",
+          単語: "remark",
+          名詞: "発言・意見",
+          動詞: "~と述べる",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "61",
+          単語: "recently",
+          名詞: "",
+          動詞: "",
+          形容詞: "",
+          副詞: "最近",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "62",
+          単語: "right",
+          名詞: "権利・正しいこと",
+          動詞: "",
+          形容詞: "正しい",
+          副詞: "正しく・すぐに",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "63",
+          単語: "soon",
+          名詞: "",
+          動詞: "",
+          形容詞: "",
+          副詞: "すぐに",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "64",
+          単語: "able",
+          名詞: "",
+          動詞: "",
+          形容詞: "～できる",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "65",
+          単語: "already",
+          名詞: "",
+          動詞: "",
+          形容詞: "",
+          副詞: "すでに",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "66",
+          単語: "delivery",
+          名詞: "配達",
+          動詞: "",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "67",
+          単語: "different",
+          名詞: "",
+          動詞: "",
+          形容詞: "異なる",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "68",
+          単語: "director",
+          名詞: "部長・役員",
+          動詞: "",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "69",
+          単語: "equipment",
+          名詞: "設備",
+          動詞: "",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "70",
+          単語: "few",
+          名詞: "",
+          動詞: "",
+          形容詞: "少ない",
+          副詞: "少し",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "71",
+          単語: "find",
+          名詞: "",
+          動詞: "~を見つける",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "72",
+          単語: "near",
+          名詞: "",
+          動詞: "",
+          形容詞: "近い",
+          副詞: "近く",
+          前置詞: "～の近く",
+          接続詞: "",
+        },
+        {
+          No: "73",
+          単語: "since",
+          名詞: "",
+          動詞: "",
+          形容詞: "",
+          副詞: "以来",
+          前置詞: "～以来",
+          接続詞: "～なので",
+        },
+        {
+          No: "74",
+          単語: "early",
+          名詞: "",
+          動詞: "",
+          形容詞: "早い",
+          副詞: "早く",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "75",
+          単語: "until",
+          名詞: "",
+          動詞: "",
+          形容詞: "",
+          副詞: "",
+          前置詞: "～まで",
+          接続詞: "",
+        },
+        {
+          No: "76",
+          単語: "attend",
+          名詞: "",
+          動詞: "~に出席する",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "77",
+          単語: "complete",
+          名詞: "",
+          動詞: "~を完了する",
+          形容詞: "完全な",
+          副詞: "完全に",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "78",
+          単語: "president",
+          名詞: "社長",
+          動詞: "",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "79",
+          単語: "experience",
+          名詞: "経験",
+          動詞: "~を経験する",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "80",
+          単語: "price",
+          名詞: "価格",
+          動詞: "",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "81",
+          単語: "welcome",
+          名詞: "歓迎",
+          動詞: "~を歓迎する",
+          形容詞: "歓迎の",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "82",
+          単語: "design",
+          名詞: "デザイン・設計",
+          動詞: "~をデザインする・～を設計する",
+          形容詞: "デザインの",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "83",
+          単語: "marketing",
+          名詞: "マーケティング",
+          動詞: "",
+          形容詞: "マーケティングの",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "84",
+          単語: "policy",
+          名詞: "政策・方針",
+          動詞: "",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "85",
+          単語: "account",
+          名詞: "口座・勘定",
+          動詞: "",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "86",
+          単語: "award",
+          名詞: "賞",
+          動詞: "~を授与する",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "87",
+          単語: "flight",
+          名詞: "フライト・便",
+          動詞: "",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "88",
+          単語: "through",
+          名詞: "",
+          動詞: "",
+          形容詞: "",
+          副詞: "",
+          前置詞: "～を通して",
+          接続詞: "",
+        },
+        {
+          No: "89",
+          単語: "charge",
+          名詞: "料金・請求",
+          動詞: "~を請求する",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "90",
+          単語: "construction",
+          名詞: "建設",
+          動詞: "",
+          形容詞: "建設の",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "91",
+          単語: "performance",
+          名詞: "実績・性能",
+          動詞: "",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "92",
+          単語: "position",
+          名詞: "職位・位置",
+          動詞: "",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "93",
+          単語: "repair",
+          名詞: "修理",
+          動詞: "~を修理する",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "94",
+          単語: "announce",
+          名詞: "",
+          動詞: "~を発表する",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "95",
+          単語: "plan",
+          名詞: "計画",
+          動詞: "~を計画する",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "96",
+          単語: "arrive",
+          名詞: "",
+          動詞: "到着する",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "97",
+          単語: "budget",
+          名詞: "予算",
+          動詞: "",
+          形容詞: "予算の",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "98",
+          単語: "end",
+          名詞: "終わり",
+          動詞: "終わる",
+          形容詞: "終わりの",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "99",
+          単語: "quantity",
+          名詞: "量",
+          動詞: "",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "100",
+          単語: "contract",
+          名詞: "契約",
+          動詞: "~と契約する",
+          形容詞: "契約の",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "101",
+          単語: "include",
+          名詞: "",
+          動詞: "~を含む",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "102",
+          単語: "survey",
+          名詞: "調査",
+          動詞: "~を調査する",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "103",
+          単語: "trip",
+          名詞: "旅行",
+          動詞: "",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "104",
+          単語: "merchandise",
+          名詞: "商品",
+          動詞: "",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "105",
+          単語: "shipping",
+          名詞: "配送",
+          動詞: "",
+          形容詞: "配送の",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "106",
+          単語: "earn",
+          名詞: "",
+          動詞: "~を稼ぐ",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "107",
+          単語: "additional",
+          名詞: "",
+          動詞: "",
+          形容詞: "追加の",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "108",
+          単語: "another",
+          名詞: "",
+          動詞: "",
+          形容詞: "もう一つの",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "109",
+          単語: "possible",
+          名詞: "",
+          動詞: "",
+          形容詞: "可能な",
+          副詞: "おそらく",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "110",
+          単語: "proposal",
+          名詞: "提案",
+          動詞: "",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "111",
+          単語: "public",
+          名詞: "",
+          動詞: "",
+          形容詞: "公の",
+          副詞: "公に",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "112",
+          単語: "still",
+          名詞: "",
+          動詞: "",
+          形容詞: "",
+          副詞: "まだ",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "113",
+          単語: "submit",
+          名詞: "",
+          動詞: "~を提出する",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "114",
+          単語: "such",
+          名詞: "",
+          動詞: "",
+          形容詞: "そのような",
+          副詞: "そのように",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "115",
+          単語: "move",
+          名詞: "移動・引っ越し",
+          動詞: "移動する・～を動かす",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "116",
+          単語: "really",
+          名詞: "",
+          動詞: "",
+          形容詞: "",
+          副詞: "本当に",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "117",
+          単語: "whole",
+          名詞: "",
+          動詞: "",
+          形容詞: "全体の",
+          副詞: "まるごと",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "118",
+          単語: "sincerely",
+          名詞: "",
+          動詞: "",
+          形容詞: "",
+          副詞: "敬具",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "119",
+          単語: "cost",
+          名詞: "費用",
+          動詞: "~がかかる",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "120",
+          単語: "present",
+          名詞: "現在・贈り物",
+          動詞: "~を贈る・出席する",
+          形容詞: "現在の",
+          副詞: "現在",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "121",
+          単語: "hurry",
+          名詞: "急ぎ",
+          動詞: "急ぐ",
+          形容詞: "",
+          副詞: "急いで",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "122",
+          単語: "within",
+          名詞: "",
+          動詞: "",
+          形容詞: "",
+          副詞: "",
+          前置詞: "～以内に",
+          接続詞: "",
+        },
+        {
+          No: "123",
+          単語: "bring",
+          名詞: "",
+          動詞: "~を持ってくる",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "124",
+          単語: "fee",
+          名詞: "料金",
+          動詞: "",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "125",
+          単語: "notice",
+          名詞: "お知らせ・注意",
+          動詞: "~に気づく",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "126",
+          単語: "sign",
+          名詞: "サイン・標識",
+          動詞: "~に署名する",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "127",
+          単語: "suggest",
+          名詞: "",
+          動詞: "~を提案する",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "128",
+          単語: "while",
+          名詞: "",
+          動詞: "",
+          形容詞: "",
+          副詞: "その間",
+          前置詞: "",
+          接続詞: "～の間",
+        },
+        {
+          No: "129",
+          単語: "yet",
+          名詞: "",
+          動詞: "",
+          形容詞: "",
+          副詞: "まだ・しかし",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "130",
+          単語: "probably",
+          名詞: "",
+          動詞: "",
+          形容詞: "",
+          副詞: "おそらく",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "131",
+          単語: "close",
+          名詞: "",
+          動詞: "~を閉める",
+          形容詞: "近い",
+          副詞: "近く",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "132",
+          単語: "discuss",
+          名詞: "",
+          動詞: "~について話し合う",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "133",
+          単語: "opinion",
+          名詞: "意見",
+          動詞: "",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "134",
+          単語: "interview",
+          名詞: "面接",
+          動詞: "~に面接する",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "135",
+          単語: "maintenance",
+          名詞: "メンテナンス",
+          動詞: "",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "136",
+          単語: "mention",
+          名詞: "",
+          動詞: "~に言及する",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "137",
+          単語: "address",
+          名詞: "住所・演説",
+          動詞: "~に話しかける・～に対処する",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "138",
+          単語: "found",
+          名詞: "",
+          動詞: "~を見つけた",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "139",
+          単語: "however",
+          名詞: "",
+          動詞: "",
+          形容詞: "",
+          副詞: "しかし",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "140",
+          単語: "increase",
+          名詞: "増加",
+          動詞: "増加する・～を増やす",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "141",
+          単語: "later",
+          名詞: "",
+          動詞: "",
+          形容詞: "後で",
+          副詞: "後で",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "142",
+          単語: "series",
+          名詞: "シリーズ",
+          動詞: "",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "143",
+          単語: "transportation",
+          名詞: "交通手段",
+          動詞: "",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "144",
+          単語: "annual",
+          名詞: "",
+          動詞: "",
+          形容詞: "年間の",
+          副詞: "毎年",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "145",
+          単語: "application",
+          名詞: "応募・申請・アプリ",
+          動詞: "",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "146",
+          単語: "detail",
+          名詞: "詳細",
+          動詞: "",
+          形容詞: "詳細な",
+          副詞: "詳しく",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "147",
+          単語: "passenger",
+          名詞: "乗客",
+          動詞: "",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "148",
+          単語: "supervisor",
+          名詞: "上司・監督者",
+          動詞: "",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "149",
+          単語: "access",
+          名詞: "アクセス・利用",
+          動詞: "~にアクセスする",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "150",
+          単語: "decide",
+          名詞: "",
+          動詞: "~を決定する",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "151",
+          単語: "financial",
+          名詞: "",
+          動詞: "",
+          形容詞: "財政的な",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "152",
+          単語: "forward",
+          名詞: "",
+          動詞: "",
+          形容詞: "前方の",
+          副詞: "前へ",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "153",
+          単語: "concern",
+          名詞: "心配・懸念",
+          動詞: "~を心配させる",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "154",
+          単語: "popular",
+          名詞: "",
+          動詞: "",
+          形容詞: "人気のある",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "155",
+          単語: "presentation",
+          名詞: "プレゼンテーション",
+          動詞: "",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "156",
+          単語: "qualification",
+          名詞: "資格",
+          動詞: "",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "157",
+          単語: "recommend",
+          名詞: "",
+          動詞: "～を推薦する",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "158",
+          単語: "reservation",
+          名詞: "予約",
+          動詞: "",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "159",
+          単語: "garden",
+          名詞: "庭",
+          動詞: "",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "160",
+          単語: "hire",
+          名詞: "採用",
+          動詞: "～を採用する",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "161",
+          単語: "please",
+          名詞: "",
+          動詞: "～を喜ばせる",
+          形容詞: "",
+          副詞: "どうか",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "162",
+          単語: "resource",
+          名詞: "資源",
+          動詞: "",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "163",
+          単語: "workshop",
+          名詞: "ワークショップ",
+          動詞: "",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "164",
+          単語: "both",
+          名詞: "",
+          動詞: "",
+          形容詞: "両方の",
+          副詞: "両方とも",
+          前置詞: "",
+          接続詞: "～と～",
+        },
+        {
+          No: "165",
+          単語: "community",
+          名詞: "地域社会",
+          動詞: "",
+          形容詞: "地域社会の",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "166",
+          単語: "confirm",
+          名詞: "",
+          動詞: "～を確認する",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "167",
+          単語: "due",
+          名詞: "締め切り",
+          動詞: "",
+          形容詞: "期限が来た",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "168",
+          単語: "facility",
+          名詞: "施設",
+          動詞: "",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "169",
+          単語: "fulfill",
+          名詞: "",
+          動詞: "～を満たす",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "170",
+          単語: "interest",
+          名詞: "興味・利子",
+          動詞: "～に興味を持たせる",
+          形容詞: "興味深い",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "171",
+          単語: "laboratory",
+          名詞: "研究所",
+          動詞: "",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "172",
+          単語: "own",
+          名詞: "自分自身の",
+          動詞: "～を所有する",
+          形容詞: "自分自身の",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "173",
+          単語: "previous",
+          名詞: "",
+          動詞: "",
+          形容詞: "前の",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "174",
+          単語: "promptly",
+          名詞: "",
+          動詞: "",
+          形容詞: "",
+          副詞: "迅速に",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "175",
+          単語: "resident",
+          名詞: "居住者",
+          動詞: "",
+          形容詞: "居住している",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "176",
+          単語: "security",
+          名詞: "安全・警備",
+          動詞: "",
+          形容詞: "安全な",
+          副詞: "安全に",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "177",
+          単語: "vehicle",
+          名詞: "車両",
+          動詞: "",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "178",
+          単語: "board",
+          名詞: "委員会・掲示板",
+          動詞: "～に乗る",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "179",
+          単語: "career",
+          名詞: "職業・経歴",
+          動詞: "",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "180",
+          単語: "clothing",
+          名詞: "衣類",
+          動詞: "",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "181",
+          単語: "credit",
+          名詞: "信用・クレジット",
+          動詞: "",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "182",
+          単語: "describe",
+          名詞: "",
+          動詞: "～を説明する",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "183",
+          単語: "focus",
+          名詞: "焦点",
+          動詞: "～に焦点を当てる",
+          形容詞: "焦点の合った",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "184",
+          単語: "identification",
+          名詞: "身分証明",
+          動詞: "",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "185",
+          単語: "international",
+          名詞: "",
+          動詞: "",
+          形容詞: "国際的な",
+          副詞: "国際的に",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "186",
+          単語: "revise",
+          名詞: "",
+          動詞: "～を修正する",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "187",
+          単語: "register",
+          名詞: "登録簿",
+          動詞: "～を登録する",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "188",
+          単語: "upcoming",
+          名詞: "",
+          動詞: "",
+          形容詞: "今後の",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "189",
+          単語: "update",
+          名詞: "最新情報",
+          動詞: "～を更新する",
+          形容詞: "最新の",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "190",
+          単語: "approximately",
+          名詞: "",
+          動詞: "",
+          形容詞: "",
+          副詞: "おおよそ",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "191",
+          単語: "currently",
+          名詞: "",
+          動詞: "",
+          形容詞: "現在の",
+          副詞: "現在",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "192",
+          単語: "crowded",
+          名詞: "",
+          動詞: "",
+          形容詞: "混雑した",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "193",
+          単語: "safety",
+          名詞: "安全",
+          動詞: "",
+          形容詞: "安全な",
+          副詞: "安全に",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "194",
+          単語: "selection",
+          名詞: "選択",
+          動詞: "",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "195",
+          単語: "bulletin",
+          名詞: "掲示",
+          動詞: "",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "196",
+          単語: "feature",
+          名詞: "特徴",
+          動詞: "～を特徴づける",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "197",
+          単語: "instrument",
+          名詞: "器具・楽器",
+          動詞: "",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "198",
+          単語: "join",
+          名詞: "",
+          動詞: "～に参加する",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "199",
+          単語: "leave",
+          名詞: "休暇・出発",
+          動詞: "～を去る・～を残す",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "200",
+          単語: "plant",
+          名詞: "植物・工場",
+          動詞: "～を植える",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "201",
+          単語: "require",
+          名詞: "",
+          動詞: "～を必要とする",
+          形容詞: "必須の",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "202",
+          単語: "short",
+          名詞: "",
+          動詞: "",
+          形容詞: "短い",
+          副詞: "短く",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "203",
+          単語: "tell",
+          名詞: "",
+          動詞: "～に話す・～を伝える",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "204",
+          単語: "campaign",
+          名詞: "キャンペーン",
+          動詞: "",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "205",
+          単語: "collection",
+          名詞: "コレクション・収集",
+          動詞: "",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "206",
+          単語: "document",
+          名詞: "書類",
+          動詞: "",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "207",
+          単語: "expect",
+          名詞: "",
+          動詞: "～を期待する",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "208",
+          単語: "least",
+          名詞: "",
+          動詞: "",
+          形容詞: "最小の",
+          副詞: "少なくとも",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "209",
+          単語: "membership",
+          名詞: "会員資格",
+          動詞: "",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "210",
+          単語: "publish",
+          名詞: "",
+          動詞: "～を出版する",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "211",
+          単語: "rent",
+          名詞: "賃貸料",
+          動詞: "～を賃借りする",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "212",
+          単語: "voucher",
+          名詞: "引換券",
+          動詞: "",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "213",
+          単語: "actually",
+          名詞: "",
+          動詞: "",
+          形容詞: "",
+          副詞: "実際に",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "214",
+          単語: "arrange",
+          名詞: "",
+          動詞: "～を手配する",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "215",
+          単語: "care",
+          名詞: "注意・世話",
+          動詞: "～を気にする・世話をする",
+          形容詞: "注意深い",
+          副詞: "注意深く",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "216",
+          単語: "create",
+          名詞: "",
+          動詞: "～を創造する",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "217",
+          単語: "explain",
+          名詞: "",
+          動詞: "～を説明する",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "218",
+          単語: "field",
+          名詞: "分野・畑",
+          動詞: "",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "219",
+          単語: "deadline",
+          名詞: "締め切り",
+          動詞: "",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "220",
+          単語: "important",
+          名詞: "",
+          動詞: "",
+          形容詞: "重要な",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "221",
+          単語: "once",
+          名詞: "",
+          動詞: "",
+          形容詞: "一度",
+          副詞: "一度",
+          前置詞: "",
+          接続詞: "いったん～すると",
+        },
+        {
+          No: "222",
+          単語: "pay",
+          名詞: "給料・支払い",
+          動詞: "～を支払う",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "223",
+          単語: "quite",
+          名詞: "",
+          動詞: "",
+          形容詞: "かなり",
+          副詞: "かなり",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "224",
+          単語: "opposite",
+          名詞: "",
+          動詞: "",
+          形容詞: "反対の",
+          副詞: "反対に",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "225",
+          単語: "though",
+          名詞: "",
+          動詞: "",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "～だけれども",
+        },
+        {
+          No: "226",
+          単語: "along",
+          名詞: "",
+          動詞: "",
+          形容詞: "",
+          副詞: "～に沿って",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "227",
+          単語: "assist",
+          名詞: "",
+          動詞: "～を助ける",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "228",
+          単語: "based",
+          名詞: "",
+          動詞: "",
+          形容詞: "～に基づいた",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "229",
+          単語: "between",
+          名詞: "",
+          動詞: "",
+          形容詞: "",
+          副詞: "",
+          前置詞: "～の間に",
+          接続詞: "",
+        },
+        {
+          No: "230",
+          単語: "beverage",
+          名詞: "飲料",
+          動詞: "",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "231",
+          単語: "enough",
+          名詞: "",
+          動詞: "",
+          形容詞: "十分な",
+          副詞: "十分に",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "232",
+          単語: "extra",
+          名詞: "",
+          動詞: "",
+          形容詞: "余分な",
+          副詞: "余分に",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "233",
+          単語: "guide",
+          名詞: "ガイド・案内書",
+          動詞: "～を案内する",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "234",
+          単語: "introduce",
+          名詞: "",
+          動詞: "～を紹介する",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "235",
+          単語: "investment",
+          名詞: "投資",
+          動詞: "～を投資する",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "236",
+          単語: "issue",
+          名詞: "問題・発行",
+          動詞: "～を発行する",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "237",
+          単語: "limited",
+          名詞: "",
+          動詞: "",
+          形容詞: "限られた",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "238",
+          単語: "pick",
+          名詞: "",
+          動詞: "～を選ぶ・拾う",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "239",
+          単語: "prepare",
+          名詞: "",
+          動詞: "～を準備する",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "240",
+          単語: "ready",
+          名詞: "",
+          動詞: "",
+          形容詞: "用意ができた",
+          副詞: "準備ができて",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "241",
+          単語: "replace",
+          名詞: "",
+          動詞: "～を取り替える",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "242",
+          単語: "together",
+          名詞: "",
+          動詞: "",
+          形容詞: "",
+          副詞: "一緒に",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "243",
+          単語: "variety",
+          名詞: "多様性",
+          動詞: "",
+          形容詞: "さまざまな",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "244",
+          単語: "warranty",
+          名詞: "保証",
+          動詞: "",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "245",
+          単語: "attach",
+          名詞: "",
+          動詞: "～を添付する",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "246",
+          単語: "furthermore",
+          名詞: "",
+          動詞: "",
+          形容詞: "",
+          副詞: "さらに",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "247",
+          単語: "exhibit",
+          名詞: "展示品",
+          動詞: "～を展示する",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "248",
+          単語: "finish",
+          名詞: "終わり",
+          動詞: "～を終える",
+          形容詞: "終わりの",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "249",
+          単語: "fuel",
+          名詞: "燃料",
+          動詞: "",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "250",
+          単語: "install",
+          名詞: "",
+          動詞: "～を設置する",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "251",
+          単語: "medical",
+          名詞: "",
+          動詞: "",
+          形容詞: "医療の",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "252",
+          単語: "opportunity",
+          名詞: "機会",
+          動詞: "",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "253",
+          単語: "past",
+          名詞: "過去",
+          動詞: "",
+          形容詞: "過去の",
+          副詞: "過去に",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "254",
+          単語: "profit",
+          名詞: "利益",
+          動詞: "",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "255",
+          単語: "process",
+          名詞: "過程・処理",
+          動詞: "～を処理する",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "256",
+          単語: "promote",
+          名詞: "",
+          動詞: "～を昇進させる・～を促進する",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "257",
+          単語: "celebration",
+          名詞: "お祝い",
+          動詞: "",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "258",
+          単語: "choose",
+          名詞: "",
+          動詞: "～を選ぶ",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "259",
+          単語: "code",
+          名詞: "コード・符号",
+          動詞: "",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "260",
+          単語: "corporate",
+          名詞: "",
+          動詞: "",
+          形容詞: "企業の",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "261",
+          単語: "delay",
+          名詞: "遅延",
+          動詞: "～を遅らせる",
+          形容詞: "遅れた",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "262",
+          単語: "display",
+          名詞: "展示・表示",
+          動詞: "～を展示する・表示する",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "263",
+          単語: "ensure",
+          名詞: "",
+          動詞: "～を保証する",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "264",
+          単語: "excellent",
+          名詞: "",
+          動詞: "",
+          形容詞: "素晴らしい",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "265",
+          単語: "expense",
+          名詞: "費用",
+          動詞: "",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "266",
+          単語: "express",
+          名詞: "急行",
+          動詞: "～を表現する",
+          形容詞: "急行の",
+          副詞: "急いで",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "267",
+          単語: "factory",
+          名詞: "工場",
+          動詞: "",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "268",
+          単語: "firm",
+          名詞: "会社",
+          動詞: "",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "269",
+          単語: "idea",
+          名詞: "アイデア",
+          動詞: "",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "270",
+          単語: "immediately",
+          名詞: "",
+          動詞: "",
+          形容詞: "",
+          副詞: "すぐに",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "271",
+          単語: "latest",
+          名詞: "",
+          動詞: "",
+          形容詞: "最新の",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "272",
+          単語: "mainly",
+          名詞: "",
+          動詞: "",
+          形容詞: "",
+          副詞: "主に",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "273",
+          単語: "matter",
+          名詞: "問題・事柄",
+          動詞: "～は重要である",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "274",
+          単語: "monthly",
+          名詞: "",
+          動詞: "",
+          形容詞: "月々の",
+          副詞: "毎月",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "275",
+          単語: "obtain",
+          名詞: "",
+          動詞: "～を得る",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "276",
+          単語: "personnel",
+          名詞: "人事",
+          動詞: "",
+          形容詞: "人事の",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "277",
+          単語: "rate",
+          名詞: "割合・料金",
+          動詞: "",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "278",
+          単語: "stock",
+          名詞: "在庫・株",
+          動詞: "",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "279",
+          単語: "supply",
+          名詞: "供給",
+          動詞: "～を供給する",
+          形容詞: "供給の",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "280",
+          単語: "suppose",
+          名詞: "",
+          動詞: "～だと思う",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "281",
+          単語: "traffic",
+          名詞: "交通",
+          動詞: "",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "282",
+          単語: "accurate",
+          名詞: "",
+          動詞: "",
+          形容詞: "正確な",
+          副詞: "正確に",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "283",
+          単語: "across",
+          名詞: "",
+          動詞: "",
+          形容詞: "",
+          副詞: "～を横切って",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "284",
+          単語: "agent",
+          名詞: "代理人",
+          動詞: "",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "285",
+          単語: "always",
+          名詞: "",
+          動詞: "",
+          形容詞: "",
+          副詞: "いつも",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "286",
+          単語: "failure",
+          名詞: "失敗",
+          動詞: "",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "287",
+          単語: "easily",
+          名詞: "",
+          動詞: "",
+          形容詞: "",
+          副詞: "簡単に",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "288",
+          単語: "occur",
+          名詞: "",
+          動詞: "起こる",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "289",
+          単語: "regular",
+          名詞: "",
+          動詞: "",
+          形容詞: "定期的な",
+          副詞: "定期的に",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "290",
+          単語: "remind",
+          名詞: "",
+          動詞: "～に思い出させる",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "291",
+          単語: "representative",
+          名詞: "代表者",
+          動詞: "",
+          形容詞: "代表的な",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "292",
+          単語: "successful",
+          名詞: "",
+          動詞: "",
+          形容詞: "成功した",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "293",
+          単語: "under",
+          名詞: "",
+          動詞: "",
+          形容詞: "",
+          副詞: "",
+          前置詞: "～の下に",
+          接続詞: "",
+        },
+        {
+          No: "294",
+          単語: "according",
+          名詞: "",
+          動詞: "",
+          形容詞: "",
+          副詞: "～によれば",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "295",
+          単語: "committee",
+          名詞: "委員会",
+          動詞: "",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "296",
+          単語: "consider",
+          名詞: "",
+          動詞: "～を考慮する",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "297",
+          単語: "damage",
+          名詞: "損害",
+          動詞: "～に損害を与える",
+          形容詞: "損害の",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "298",
+          単語: "blame",
+          名詞: "非難",
+          動詞: "～を非難する",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "299",
+          単語: "development",
+          名詞: "開発・発展",
+          動詞: "",
+          形容詞: "開発の・発展の",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "300",
+          単語: "effective",
+          名詞: "",
+          動詞: "",
+          形容詞: "効果的な",
+          副詞: "効果的に",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "301",
+          単語: "postpone",
+          名詞: "",
+          動詞: "～を延期する",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "302",
+          単語: "information",
+          名詞: "情報",
+          動詞: "",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "303",
+          単語: "participate",
+          名詞: "",
+          動詞: "～に参加する",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "304",
+          単語: "prefer",
+          名詞: "",
+          動詞: "～を好む",
+          形容詞: "好みの",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "305",
+          単語: "professional",
+          名詞: "",
+          動詞: "",
+          形容詞: "専門的な",
+          副詞: "専門的に",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "306",
+          単語: "property",
+          名詞: "不動産・財産",
+          動詞: "",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "307",
+          単語: "rather",
+          名詞: "",
+          動詞: "",
+          形容詞: "",
+          副詞: "むしろ",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "308",
+          単語: "reception",
+          名詞: "受付・歓迎会",
+          動詞: "",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "309",
+          単語: "remain",
+          名詞: "",
+          動詞: "残る",
+          形容詞: "残りの",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "310",
+          単語: "written",
+          名詞: "",
+          動詞: "",
+          形容詞: "書かれた",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "311",
+          単語: "wrong",
+          名詞: "",
+          動詞: "",
+          形容詞: "間違った",
+          副詞: "間違って",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "312",
+          単語: "accept",
+          名詞: "",
+          動詞: "～を受け入れる",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "313",
+          単語: "advice",
+          名詞: "助言",
+          動詞: "",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "314",
+          単語: "banquet",
+          名詞: "宴会",
+          動詞: "",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "315",
+          単語: "colleague",
+          名詞: "同僚",
+          動詞: "",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "316",
+          単語: "convenient",
+          名詞: "",
+          動詞: "",
+          形容詞: "便利な",
+          副詞: "便利に",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "317",
+          単語: "convention",
+          名詞: "会議・慣習",
+          動詞: "",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "318",
+          単語: "fine",
+          名詞: "罰金",
+          動詞: "",
+          形容詞: "素晴らしい・元気な",
+          副詞: "元気に・細かく",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "319",
+          単語: "follow",
+          名詞: "",
+          動詞: "～に従う",
+          形容詞: "次の",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "320",
+          単語: "highly",
+          名詞: "",
+          動詞: "",
+          形容詞: "",
+          副詞: "非常に",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "321",
+          単語: "industry",
+          名詞: "産業",
+          動詞: "",
+          形容詞: "産業の",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "322",
+          単語: "instead",
+          名詞: "",
+          動詞: "",
+          形容詞: "",
+          副詞: "代わりに",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "323",
+          単語: "instruction",
+          名詞: "指示",
+          動詞: "",
+          形容詞: "指示の",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "324",
+          単語: "major",
+          名詞: "",
+          動詞: "",
+          形容詞: "主要な",
+          副詞: "主に",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "325",
+          単語: "manual",
+          名詞: "手引書",
+          動詞: "",
+          形容詞: "手動の",
+          副詞: "手動で",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "326",
+          単語: "manufacturing",
+          名詞: "製造業",
+          動詞: "",
+          形容詞: "製造の",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "327",
+          単語: "personal",
+          名詞: "",
+          動詞: "",
+          形容詞: "個人的な",
+          副詞: "個人的に",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "328",
+          単語: "praise",
+          名詞: "称賛",
+          動詞: "～を称賛する",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "329",
+          単語: "press",
+          名詞: "報道・出版",
+          動詞: "～を押す",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "330",
+          単語: "remove",
+          名詞: "",
+          動詞: "～を取り除く",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "331",
+          単語: "retirement",
+          名詞: "退職",
+          動詞: "",
+          形容詞: "退職の",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "332",
+          単語: "throughout",
+          名詞: "",
+          動詞: "",
+          形容詞: "",
+          副詞: "～の間じゅう",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "333",
+          単語: "usually",
+          名詞: "",
+          動詞: "",
+          形容詞: "",
+          副詞: "たいてい",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "334",
+          単語: "answer",
+          名詞: "答え",
+          動詞: "～に答える",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "335",
+          単語: "attention",
+          名詞: "注意",
+          動詞: "",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "336",
+          単語: "briefly",
+          名詞: "",
+          動詞: "",
+          形容詞: "",
+          副詞: "簡潔に",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "337",
+          単語: "cancel",
+          名詞: "",
+          動詞: "～をキャンセルする",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "338",
+          単語: "ignore",
+          名詞: "",
+          動詞: "～を無視する",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "339",
+          単語: "feedback",
+          名詞: "フィードバック",
+          動詞: "",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "340",
+          単語: "guideline",
+          名詞: "指針",
+          動詞: "",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "341",
+          単語: "organize",
+          名詞: "",
+          動詞: "～を組織する",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "342",
+          単語: "outstanding",
+          名詞: "",
+          動詞: "",
+          形容詞: "傑出した",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "343",
+          単語: "recognition",
+          名詞: "認識・表彰",
+          動詞: "",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "344",
+          単語: "run",
+          名詞: "経営・走行",
+          動詞: "走る・～を経営する",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "345",
+          単語: "shelf",
+          名詞: "棚",
+          動詞: "",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "346",
+          単語: "specific",
+          名詞: "",
+          動詞: "",
+          形容詞: "特定の",
+          副詞: "具体的に",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "347",
+          単語: "standard",
+          名詞: "基準",
+          動詞: "",
+          形容詞: "標準的な",
+          副詞: "標準的に",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "348",
+          単語: "state",
+          名詞: "状態・州",
+          動詞: "～を述べる",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "349",
+          単語: "storage",
+          名詞: "保管・貯蔵",
+          動詞: "",
+          形容詞: "保管の",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "350",
+          単語: "temporary",
+          名詞: "",
+          動詞: "",
+          形容詞: "一時的な",
+          副詞: "一時的に",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "351",
+          単語: "appreciate",
+          名詞: "",
+          動詞: "～に感謝する",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "352",
+          単語: "associate",
+          名詞: "関係者・同僚",
+          動詞: "～を関連付ける",
+          形容詞: "関連した",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "353",
+          単語: "audience",
+          名詞: "聴衆",
+          動詞: "",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "354",
+          単語: "brochure",
+          名詞: "パンフレット",
+          動詞: "",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "355",
+          単語: "candidate",
+          名詞: "候補者",
+          動詞: "",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "356",
+          単語: "despite",
+          名詞: "",
+          動詞: "",
+          形容詞: "",
+          副詞: "",
+          前置詞: "～にもかかわらず",
+          接続詞: "",
+        },
+        {
+          No: "357",
+          単語: "enclosed",
+          名詞: "",
+          動詞: "",
+          形容詞: "同封された",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "358",
+          単語: "executive",
+          名詞: "幹部",
+          動詞: "",
+          形容詞: "幹部の",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "359",
+          単語: "figure",
+          名詞: "数字・図",
+          動詞: "～を理解する・～を計算する",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "360",
+          単語: "filing",
+          名詞: "書類整理",
+          動詞: "",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "361",
+          単語: "final",
+          名詞: "",
+          動詞: "",
+          形容詞: "最終的な",
+          副詞: "最終的に",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "362",
+          単語: "healthcare",
+          名詞: "医療",
+          動詞: "",
+          形容詞: "医療の",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "363",
+          単語: "innovative",
+          名詞: "",
+          動詞: "",
+          形容詞: "革新的な",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "364",
+          単語: "intend",
+          名詞: "",
+          動詞: "～を意図する",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "365",
+          単語: "invite",
+          名詞: "",
+          動詞: "～を招待する",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "366",
+          単語: "necessary",
+          名詞: "",
+          動詞: "",
+          形容詞: "必要な",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "367",
+          単語: "platform",
+          名詞: "プラットフォーム",
+          動詞: "",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "368",
+          単語: "practice",
+          名詞: "練習・慣習",
+          動詞: "～を練習する",
+          形容詞: "実践的な",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "369",
+          単語: "reason",
+          名詞: "理由",
+          動詞: "",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "370",
+          単語: "skill",
+          名詞: "技術・技能",
+          動詞: "",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "371",
+          単語: "tool",
+          名詞: "道具",
+          動詞: "",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "372",
+          単語: "trade",
+          名詞: "貿易・取引",
+          動詞: "～を取引する",
+          形容詞: "貿易の",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "373",
+          単語: "whether",
+          名詞: "",
+          動詞: "",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "～かどうか",
+        },
+        {
+          No: "374",
+          単語: "worth",
+          名詞: "価値",
+          動詞: "",
+          形容詞: "価値がある",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "375",
+          単語: "acquisition",
+          名詞: "買収",
+          動詞: "",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "376",
+          単語: "advance",
+          名詞: "前進・進歩",
+          動詞: "～を進める",
+          形容詞: "事前の",
+          副詞: "前もって",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "377",
+          単語: "agenda",
+          名詞: "議題",
+          動詞: "",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "378",
+          単語: "author",
+          名詞: "著者",
+          動詞: "",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "379",
+          単語: "complex",
+          名詞: "",
+          動詞: "",
+          形容詞: "複雑な",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "380",
+          単語: "condition",
+          名詞: "状態・条件",
+          動詞: "",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "381",
+          単語: "continue",
+          名詞: "",
+          動詞: "～を続ける",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "382",
+          単語: "efficient",
+          名詞: "",
+          動詞: "",
+          形容詞: "効率的な",
+          副詞: "効率的に",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "383",
+          単語: "entrance",
+          名詞: "入口",
+          動詞: "",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "384",
+          単語: "further",
+          名詞: "",
+          動詞: "",
+          形容詞: "さらなる",
+          副詞: "さらに",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "385",
+          単語: "lead",
+          名詞: "リード・主導",
+          動詞: "～を導く・主導する",
+          形容詞: "主要な",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "386",
+          単語: "often",
+          名詞: "",
+          動詞: "",
+          形容詞: "",
+          副詞: "しばしば",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "387",
+          単語: "patient",
+          名詞: "患者",
+          動詞: "",
+          形容詞: "我慢強い",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "388",
+          単語: "procedure",
+          名詞: "手順",
+          動詞: "",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "389",
+          単語: "quickly",
+          名詞: "",
+          動詞: "",
+          形容詞: "",
+          副詞: "素早く",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "390",
+          単語: "regarding",
+          名詞: "",
+          動詞: "",
+          形容詞: "",
+          副詞: "～に関して",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "391",
+          単語: "regional",
+          名詞: "",
+          動詞: "",
+          形容詞: "地域の",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "392",
+          単語: "respond",
+          名詞: "",
+          動詞: "～に返信する",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "393",
+          単語: "share",
+          名詞: "共有・株",
+          動詞: "～を共有する",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "394",
+          単語: "unfortunately",
+          名詞: "",
+          動詞: "",
+          形容詞: "",
+          副詞: "残念ながら",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "395",
+          単語: "TRUE",
+          名詞: "",
+          動詞: "",
+          形容詞: "本当の",
+          副詞: "本当に",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "396",
+          単語: "apologize",
+          名詞: "",
+          動詞: "謝る",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "397",
+          単語: "bill",
+          名詞: "請求書",
+          動詞: "～に請求する",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "398",
+          単語: "carefully",
+          名詞: "",
+          動詞: "",
+          形容詞: "注意深く",
+          副詞: "注意深く",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "399",
+          単語: "case",
+          名詞: "場合・事例",
+          動詞: "",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "400",
+          単語: "cover",
+          名詞: "カバー・覆い",
+          動詞: "～を覆う・～を扱う",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "401",
+          単語: "deposit",
+          名詞: "預金・保証金",
+          動詞: "～を預ける",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "402",
+          単語: "except",
+          名詞: "",
+          動詞: "",
+          形容詞: "",
+          副詞: "～を除いて",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "403",
+          単語: "expert",
+          名詞: "専門家",
+          動詞: "",
+          形容詞: "専門的な",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "404",
+          単語: "extremely",
+          名詞: "",
+          動詞: "",
+          形容詞: "",
+          副詞: "極めて",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "405",
+          単語: "familiar",
+          名詞: "",
+          動詞: "",
+          形容詞: "よく知られた",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "406",
+          単語: "force",
+          名詞: "力",
+          動詞: "～を強いる",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "407",
+          単語: "grant",
+          名詞: "助成金・許可",
+          動詞: "～を与える・許可する",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "408",
+          単語: "headquarters",
+          名詞: "本社",
+          動詞: "",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "409",
+          単語: "outdoors",
+          名詞: "",
+          動詞: "",
+          形容詞: "屋外の",
+          副詞: "屋外で",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "410",
+          単語: "plenty",
+          名詞: "たくさん",
+          動詞: "",
+          形容詞: "十分な",
+          副詞: "たくさん",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "411",
+          単語: "quarter",
+          名詞: "四半期",
+          動詞: "",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "412",
+          単語: "refund",
+          名詞: "払い戻し",
+          動詞: "～を払い戻す",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "413",
+          単語: "serve",
+          名詞: "",
+          動詞: "～に仕える・～を提供する",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "414",
+          単語: "specialize",
+          名詞: "",
+          動詞: "～を専門とする",
+          形容詞: "専門の",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "415",
+          単語: "technical",
+          名詞: "",
+          動詞: "",
+          形容詞: "技術的な",
+          副詞: "技術的に",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "416",
+          単語: "term",
+          名詞: "用語・期間",
+          動詞: "",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "417",
+          単語: "unique",
+          名詞: "",
+          動詞: "",
+          形容詞: "独特の",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "418",
+          単語: "advantage",
+          名詞: "利点",
+          動詞: "",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "419",
+          単語: "almost",
+          名詞: "",
+          動詞: "",
+          形容詞: "",
+          副詞: "ほとんど",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "420",
+          単語: "approve",
+          名詞: "",
+          動詞: "～を承認する",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "421",
+          単語: "assign",
+          名詞: "",
+          動詞: "～を割り当てる",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "422",
+          単語: "branch",
+          名詞: "支店・枝",
+          動詞: "",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "423",
+          単語: "cause",
+          名詞: "原因",
+          動詞: "～を引き起こす",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "424",
+          単語: "ceremony",
+          名詞: "式典",
+          動詞: "",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "425",
+          単語: "funding",
+          名詞: "資金調達",
+          動詞: "",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "426",
+          単語: "garage",
+          名詞: "車庫",
+          動詞: "",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "427",
+          単語: "glad",
+          名詞: "",
+          動詞: "",
+          形容詞: "嬉しい",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "428",
+          単語: "impress",
+          名詞: "",
+          動詞: "～に印象を与える",
+          形容詞: "印象的な",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "429",
+          単語: "indicate",
+          名詞: "",
+          動詞: "～を示す",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "430",
+          単語: "relocate",
+          名詞: "",
+          動詞: "移転する",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "431",
+          単語: "manuscript",
+          名詞: "原稿",
+          動詞: "",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "432",
+          単語: "merger",
+          名詞: "合併",
+          動詞: "",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "433",
+          単語: "option",
+          名詞: "選択肢",
+          動詞: "",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "434",
+          単語: "record",
+          名詞: "記録・記録物",
+          動詞: "～を記録する",
+          形容詞: "記録的な",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "435",
+          単語: "reduce",
+          名詞: "",
+          動詞: "～を減らす",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "436",
+          単語: "result",
+          名詞: "結果",
+          動詞: "～に終わる",
+          形容詞: "結果として起こる",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "437",
+          単語: "satisfy",
+          名詞: "",
+          動詞: "～を満足させる",
+          形容詞: "満足した",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "438",
+          単語: "spend",
+          名詞: "",
+          動詞: "～を使う・費やす",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "439",
+          単語: "urban",
+          名詞: "",
+          動詞: "",
+          形容詞: "都市の",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "440",
+          単語: "accommodate",
+          名詞: "",
+          動詞: "～を収容する・～に対応する",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "441",
+          単語: "admission",
+          名詞: "入場・入会",
+          動詞: "",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "442",
+          単語: "allow",
+          名詞: "",
+          動詞: "～を許す",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "443",
+          単語: "among",
+          名詞: "",
+          動詞: "",
+          形容詞: "",
+          副詞: "",
+          前置詞: "～の中に",
+          接続詞: "",
+        },
+        {
+          No: "444",
+          単語: "baggage",
+          名詞: "手荷物",
+          動詞: "",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "445",
+          単語: "claim",
+          名詞: "主張・請求",
+          動詞: "～を主張する・請求する",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "446",
+          単語: "demand",
+          名詞: "需要・要求",
+          動詞: "～を要求する",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "447",
+          単語: "encourage",
+          名詞: "",
+          動詞: "～を励ます",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "448",
+          単語: "frequently",
+          名詞: "",
+          動詞: "",
+          形容詞: "",
+          副詞: "頻繁に",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "449",
+          単語: "inspection",
+          名詞: "検査",
+          動詞: "",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "450",
+          単語: "operation",
+          名詞: "運営・操作",
+          動詞: "～を操作する",
+          形容詞: "操作の",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "451",
+          単語: "patronage",
+          名詞: "愛顧",
+          動詞: "",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "452",
+          単語: "ride",
+          名詞: "乗車",
+          動詞: "～に乗る",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "453",
+          単語: "shuttle",
+          名詞: "シャトル便",
+          動詞: "",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "454",
+          単語: "solution",
+          名詞: "解決策",
+          動詞: "",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "455",
+          単語: "acclaim",
+          名詞: "称賛",
+          動詞: "～を称賛する",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "456",
+          単語: "administration",
+          名詞: "管理・運営",
+          動詞: "",
+          形容詞: "管理の",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "457",
+          単語: "appliance",
+          名詞: "電化製品",
+          動詞: "",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "458",
+          単語: "appropriate",
+          名詞: "",
+          動詞: "",
+          形容詞: "適切な",
+          副詞: "適切に",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "459",
+          単語: "avoid",
+          名詞: "",
+          動詞: "～を避ける",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "460",
+          単語: "battery",
+          名詞: "電池",
+          動詞: "",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "461",
+          単語: "booth",
+          名詞: "ブース・小屋",
+          動詞: "",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "462",
+          単語: "certificate",
+          名詞: "証明書",
+          動詞: "",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "463",
+          単語: "cuisine",
+          名詞: "料理",
+          動詞: "",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "464",
+          単語: "cupboard",
+          名詞: "食器棚",
+          動詞: "",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "465",
+          単語: "defective",
+          名詞: "",
+          動詞: "",
+          形容詞: "欠陥のある",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "466",
+          単語: "entertainment",
+          名詞: "エンターテイメント",
+          動詞: "",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "467",
+          単語: "exercise",
+          名詞: "運動・練習",
+          動詞: "～を運動する・練習する",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "468",
+          単語: "expand",
+          名詞: "",
+          動詞: "～を拡大する",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "469",
+          単語: "flexible",
+          名詞: "",
+          動詞: "",
+          形容詞: "柔軟な",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "470",
+          単語: "general",
+          名詞: "",
+          動詞: "",
+          形容詞: "一般的な",
+          副詞: "一般的に",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "471",
+          単語: "hope",
+          名詞: "希望",
+          動詞: "～を望む",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "472",
+          単語: "improve",
+          名詞: "",
+          動詞: "～を改善する",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "473",
+          単語: "inquire",
+          名詞: "",
+          動詞: "～に問い合わせる",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "474",
+          単語: "inventory",
+          名詞: "在庫",
+          動詞: "",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "475",
+          単語: "invoice",
+          名詞: "請求書",
+          動詞: "～に請求書を送る",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "476",
+          単語: "insist",
+          名詞: "",
+          動詞: "～を主張する",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "477",
+          単語: "lately",
+          名詞: "",
+          動詞: "",
+          形容詞: "",
+          副詞: "最近",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "478",
+          単語: "legal",
+          名詞: "",
+          動詞: "",
+          形容詞: "法的な",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "479",
+          単語: "missing",
+          名詞: "",
+          動詞: "",
+          形容詞: "見当たらない",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "480",
+          単語: "monitor",
+          名詞: "モニター・監視装置",
+          動詞: "～を監視する",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "481",
+          単語: "original",
+          名詞: "",
+          動詞: "",
+          形容詞: "元の",
+          副詞: "元々",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "482",
+          単語: "perfect",
+          名詞: "",
+          動詞: "",
+          形容詞: "完璧な",
+          副詞: "完璧に",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "483",
+          単語: "positive",
+          名詞: "",
+          動詞: "",
+          形容詞: "肯定的な",
+          副詞: "肯定的に",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "484",
+          単語: "precisely",
+          名詞: "",
+          動詞: "",
+          形容詞: "",
+          副詞: "正確に",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "485",
+          単語: "predict",
+          名詞: "",
+          動詞: "～を予測する",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "486",
+          単語: "reach",
+          名詞: "",
+          動詞: "～に達する",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "487",
+          単語: "reference",
+          名詞: "照会・参考文献",
+          動詞: "",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "488",
+          単語: "refreshment",
+          名詞: "軽食",
+          動詞: "",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "489",
+          単語: "renovation",
+          名詞: "改装",
+          動詞: "",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "490",
+          単語: "responsible",
+          名詞: "",
+          動詞: "",
+          形容詞: "責任のある",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "491",
+          単語: "retail",
+          名詞: "小売",
+          動詞: "",
+          形容詞: "小売の",
+          副詞: "小売で",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "492",
+          単語: "sink",
+          名詞: "流し台",
+          動詞: "",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "493",
+          単語: "stairs",
+          名詞: "階段",
+          動詞: "",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "494",
+          単語: "subscription",
+          名詞: "定期購読",
+          動詞: "",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "495",
+          単語: "transition",
+          名詞: "移行",
+          動詞: "～を移行する",
+          形容詞: "移行の",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "496",
+          単語: "utensil",
+          名詞: "台所用品",
+          動詞: "",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "497",
+          単語: "valid",
+          名詞: "",
+          動詞: "",
+          形容詞: "有効な",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "498",
+          単語: "without",
+          名詞: "",
+          動詞: "",
+          形容詞: "",
+          副詞: "",
+          前置詞: "～なしで",
+          接続詞: "",
+        },
+        {
+          No: "499",
+          単語: "afraid",
+          名詞: "",
+          動詞: "",
+          形容詞: "恐れて",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "500",
+          単語: "agree",
+          名詞: "",
+          動詞: "～に同意する",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "501",
+          単語: "anniversary",
+          名詞: "記念日",
+          動詞: "",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "502",
+          単語: "business",
+          名詞: "ビジネス・事業",
+          動詞: "",
+          形容詞: "ビジネスの",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "503",
+          単語: "comfortable",
+          名詞: "",
+          動詞: "",
+          形容詞: "快適な",
+          副詞: "快適に",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "504",
+          単語: "complimentary",
+          名詞: "",
+          動詞: "",
+          形容詞: "無料の",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "505",
+          単語: "consumer",
+          名詞: "消費者",
+          動詞: "",
+          形容詞: "消費者の",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "506",
+          単語: "contain",
+          名詞: "",
+          動詞: "～を含む",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "507",
+          単語: "division",
+          名詞: "部門",
+          動詞: "",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "508",
+          単語: "especially",
+          名詞: "",
+          動詞: "",
+          形容詞: "",
+          副詞: "特に",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "509",
+          単語: "extensive",
+          名詞: "",
+          動詞: "",
+          形容詞: "広範囲の",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "510",
+          単語: "famous",
+          名詞: "",
+          動詞: "",
+          形容詞: "有名な",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "511",
+          単語: "guarantee",
+          名詞: "保証",
+          動詞: "～を保証する",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "512",
+          単語: "ingredient",
+          名詞: "材料",
+          動詞: "",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "513",
+          単語: "launch",
+          名詞: "開始・発売",
+          動詞: "～を開始する・発売する",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "514",
+          単語: "modern",
+          名詞: "",
+          動詞: "",
+          形容詞: "現代的な",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "515",
+          単語: "notify",
+          名詞: "",
+          動詞: "～に通知する",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "516",
+          単語: "potential",
+          名詞: "可能性",
+          動詞: "",
+          形容詞: "潜在的な",
+          副詞: "潜在的に",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "517",
+          単語: "prevent",
+          名詞: "",
+          動詞: "～を防ぐ",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "518",
+          単語: "prior",
+          名詞: "",
+          動詞: "",
+          形容詞: "事前の",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "519",
+          単語: "prospective",
+          名詞: "",
+          動詞: "",
+          形容詞: "見込みのある",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "520",
+          単語: "remember",
+          名詞: "",
+          動詞: "～を覚えている",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "521",
+          単語: "renew",
+          名詞: "",
+          動詞: "～を更新する",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "522",
+          単語: "reputation",
+          名詞: "評判",
+          動詞: "",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "523",
+          単語: "rest",
+          名詞: "休憩・残り",
+          動詞: "休む",
+          形容詞: "残りの",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "524",
+          単語: "separate",
+          名詞: "",
+          動詞: "～を分ける",
+          形容詞: "別々の",
+          副詞: "別々に",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "525",
+          単語: "strictly",
+          名詞: "",
+          動詞: "",
+          形容詞: "",
+          副詞: "厳密に",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "526",
+          単語: "suitable",
+          名詞: "",
+          動詞: "",
+          形容詞: "適切な",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "527",
+          単語: "therefore",
+          名詞: "",
+          動詞: "",
+          形容詞: "",
+          副詞: "したがって",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "528",
+          単語: "transfer",
+          名詞: "転勤・移動",
+          動詞: "～を転勤させる・移動させる",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "529",
+          単語: "ahead",
+          名詞: "",
+          動詞: "",
+          形容詞: "",
+          副詞: "前方に・先に",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "530",
+          単語: "amount",
+          名詞: "量",
+          動詞: "",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "531",
+          単語: "appear",
+          名詞: "",
+          動詞: "現れる",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "532",
+          単語: "architecture",
+          名詞: "建築・構造",
+          動詞: "",
+          形容詞: "建築の",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "533",
+          単語: "below",
+          名詞: "",
+          動詞: "",
+          形容詞: "下の",
+          副詞: "下に",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "534",
+          単語: "break",
+          名詞: "休憩・破損",
+          動詞: "壊れる・～を壊す",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "535",
+          単語: "browse",
+          名詞: "",
+          動詞: "閲覧する",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "536",
+          単語: "catering",
+          名詞: "ケータリング",
+          動詞: "",
+          形容詞: "ケータリングの",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "537",
+          単語: "central",
+          名詞: "",
+          動詞: "",
+          形容詞: "中央の",
+          副詞: "中央に",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "538",
+          単語: "century",
+          名詞: "世紀",
+          動詞: "",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "539",
+          単語: "chief",
+          名詞: "長・主任",
+          動詞: "",
+          形容詞: "主要な",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "540",
+          単語: "common",
+          名詞: "",
+          動詞: "",
+          形容詞: "一般的な",
+          副詞: "一般的に",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "541",
+          単語: "competition",
+          名詞: "競争",
+          動詞: "",
+          形容詞: "競争の",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "542",
+          単語: "confident",
+          名詞: "",
+          動詞: "",
+          形容詞: "自信のある",
+          副詞: "自信を持って",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "543",
+          単語: "consultant",
+          名詞: "コンサルタント",
+          動詞: "",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "544",
+          単語: "correctly",
+          名詞: "",
+          動詞: "",
+          形容詞: "",
+          副詞: "正しく",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "545",
+          単語: "council",
+          名詞: "議会",
+          動詞: "",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "546",
+          単語: "deal",
+          名詞: "取引",
+          動詞: "～を扱う",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "547",
+          単語: "designate",
+          名詞: "",
+          動詞: "～を指定する",
+          形容詞: "指定された",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "548",
+          単語: "duty",
+          名詞: "義務",
+          動詞: "",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "549",
+          単語: "durable",
+          名詞: "",
+          動詞: "",
+          形容詞: "耐久性のある",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "550",
+          単語: "dramatic",
+          名詞: "",
+          動詞: "",
+          形容詞: "劇的な",
+          副詞: "劇的に",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "551",
+          単語: "eager",
+          名詞: "",
+          動詞: "",
+          形容詞: "熱心な",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "552",
+          単語: "eligible",
+          名詞: "",
+          動詞: "",
+          形容詞: "資格のある",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "553",
+          単語: "environmentally",
+          名詞: "",
+          動詞: "",
+          形容詞: "環境に優しい",
+          副詞: "環境的に",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "554",
+          単語: "essential",
+          名詞: "",
+          動詞: "",
+          形容詞: "不可欠な",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "555",
+          単語: "estimate",
+          名詞: "見積もり",
+          動詞: "～を見積もる",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "556",
+          単語: "former",
+          名詞: "",
+          動詞: "",
+          形容詞: "以前の",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "557",
+          単語: "grocery",
+          名詞: "食料品",
+          動詞: "",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "558",
+          単語: "growth",
+          名詞: "成長",
+          動詞: "",
+          形容詞: "成長の",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "559",
+          単語: "individual",
+          名詞: "個人",
+          動詞: "",
+          形容詞: "個人の",
+          副詞: "個別に",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "560",
+          単語: "institute",
+          名詞: "研究所・協会",
+          動詞: "",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "561",
+          単語: "itinerary",
+          名詞: "旅程",
+          動詞: "",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "562",
+          単語: "material",
+          名詞: "材料",
+          動詞: "",
+          形容詞: "材料の",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "563",
+          単語: "mayor",
+          名詞: "市長",
+          動詞: "",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "564",
+          単語: "meal",
+          名詞: "食事",
+          動詞: "",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "565",
+          単語: "method",
+          名詞: "方法",
+          動詞: "",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "566",
+          単語: "newsletter",
+          名詞: "ニュースレター",
+          動詞: "",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "567",
+          単語: "otherwise",
+          名詞: "",
+          動詞: "",
+          形容詞: "",
+          副詞: "さもなければ",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "568",
+          単語: "particular",
+          名詞: "",
+          動詞: "",
+          形容詞: "特定の",
+          副詞: "特に",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "569",
+          単語: "raise",
+          名詞: "昇給・育成",
+          動詞: "～を上げる・育てる",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "570",
+          単語: "regulation",
+          名詞: "規制",
+          動詞: "",
+          形容詞: "規制の",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "571",
+          単語: "reimbursement",
+          名詞: "払い戻し",
+          動詞: "～を払い戻す",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "572",
+          単語: "release",
+          名詞: "発売・公開",
+          動詞: "～を発売する・公開する",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "573",
+          単語: "remodel",
+          名詞: "改装",
+          動詞: "～を改装する",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "574",
+          単語: "shift",
+          名詞: "シフト・交代",
+          動詞: "～を移す・交代する",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "575",
+          単語: "simply",
+          名詞: "",
+          動詞: "",
+          形容詞: "",
+          副詞: "単に",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "576",
+          単語: "stationery",
+          名詞: "文房具",
+          動詞: "",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "577",
+          単語: "strategy",
+          名詞: "戦略",
+          動詞: "",
+          形容詞: "戦略的な",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "578",
+          単語: "track",
+          名詞: "追跡・線路",
+          動詞: "～を追跡する",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "579",
+          単語: "traditional",
+          名詞: "",
+          動詞: "",
+          形容詞: "伝統的な",
+          副詞: "伝統的に",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "580",
+          単語: "valuable",
+          名詞: "",
+          動詞: "",
+          形容詞: "貴重な",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "581",
+          単語: "via",
+          名詞: "",
+          動詞: "",
+          形容詞: "",
+          副詞: "～経由で",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "582",
+          単語: "analysis",
+          名詞: "分析",
+          動詞: "～を分析する",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "583",
+          単語: "behind",
+          名詞: "",
+          動詞: "",
+          形容詞: "後ろの",
+          副詞: "後ろに",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "584",
+          単語: "bureau",
+          名詞: "局",
+          動詞: "",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "585",
+          単語: "concierge",
+          名詞: "コンシェルジュ",
+          動詞: "",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "586",
+          単語: "conduct",
+          名詞: "行為・実施",
+          動詞: "～を行う・実施する",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "587",
+          単語: "enroll",
+          名詞: "",
+          動詞: "～に入会する・登録する",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "588",
+          単語: "fix",
+          名詞: "修理・固定",
+          動詞: "～を修理する・固定する",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "589",
+          単語: "similar",
+          名詞: "",
+          動詞: "",
+          形容詞: "似た",
+          副詞: "同様に",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "590",
+          単語: "afford",
+          名詞: "",
+          動詞: "～を買う余裕がある",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "591",
+          単語: "assume",
+          名詞: "",
+          動詞: "～を仮定する",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "592",
+          単語: "average",
+          名詞: "平均",
+          動詞: "～を平均する",
+          形容詞: "平均の",
+          副詞: "平均して",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "593",
+          単語: "behalf",
+          名詞: "",
+          動詞: "",
+          形容詞: "",
+          副詞: "～を代表して",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "594",
+          単語: "commercial",
+          名詞: "",
+          動詞: "",
+          形容詞: "商業的な",
+          副詞: "商業的に",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "595",
+          単語: "donation",
+          名詞: "寄付",
+          動詞: "～を寄付する",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "596",
+          単語: "enthusiastic",
+          名詞: "",
+          動詞: "",
+          形容詞: "熱狂的な",
+          副詞: "熱狂的に",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "597",
+          単語: "evaluate",
+          名詞: "",
+          動詞: "～を評価する",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "598",
+          単語: "fare",
+          名詞: "運賃",
+          動詞: "",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "599",
+          単語: "luncheon",
+          名詞: "昼食会",
+          動詞: "",
+          形容詞: "",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+        {
+          No: "600",
+          単語: "modest",
+          名詞: "",
+          動詞: "",
+          形容詞: "控えめな",
+          副詞: "",
+          前置詞: "",
+          接続詞: "",
+        },
+      ];
+
+      // 単語の状態を保存するキー
+      const STORAGE_KEY = "wordLearningProgress";
+      const BGM_STATE_KEY = "bgmState";
+
+      // 学習中の単語リスト（スペーシング効果用）
+      let words = [];
+      let currentWordIndex = -1;
+
+      // BGM関連の変数
+      let player; // Tone.PlayerまたはTone.Synthのインスタンス
+      let isBgmPlaying = false; // BGM再生状態を管理するフラグ
+      let bgmToggleButton; // BGMボタンのDOM要素
+
+      // DOM要素の取得 - 学習ビュー
+      const learningView = document.getElementById("learningView");
+      const wordDisplay = document.getElementById("wordDisplay");
+      const definitionsDisplay = document.getElementById("definitionsDisplay");
+      const showAnswerButton = document.getElementById("showAnswerButton");
+      const actionButtons = document.getElementById("actionButtons");
+      const easyButton = document.getElementById("easyButton");
+      const hardButton = document.getElementById("hardButton");
+      const progressText = document.getElementById("progressText");
+
+      // DOM要素の取得 - 単語追加ビュー
+      const addWordView = document.getElementById("addWordView");
+      const addWordForm = document.getElementById("addWordForm");
+      const newWordInput = document.getElementById("newWord");
+      const newNounInput = document.getElementById("newNoun");
+      const newVerbInput = document.getElementById("newVerb");
+      const newAdjectiveInput = document.getElementById("newAdjective");
+      const newAdverbInput = document.getElementById("newAdverb");
+      const newPrepositionInput = document.getElementById("newPreposition");
+      const newConjunctionInput = document.getElementById("newConjunction");
+      const messageBox = document.getElementById("messageBox"); // For add word view messages
+
+      // DOM要素の取得 - 単語一覧ビュー
+      const wordListView = document.getElementById("wordListView");
+      const wordListContent = document.getElementById("wordListContent");
+      const noWordsMessage = document.getElementById("noWordsMessage");
+
+      // DOM要素の取得 - 単語編集ビュー
+      const wordEditView = document.getElementById("wordEditView");
+      const wordEditTableBody = document.getElementById("wordEditTableBody");
+      const noWordsEditMessage = document.getElementById("noWordsEditMessage");
+      const editMessageBox = document.getElementById("editMessageBox"); // For edit view messages
+
+      // DOM要素の取得 - 範囲テストビュー
+      const testByRangeView = document.getElementById("testByRangeView");
+      const startNoInput = document.getElementById("startNo");
+      const endNoInput = document.getElementById("endNo");
+      const numberOfQuestionsInput =
+        document.getElementById("numberOfQuestions"); // 新しい出題数入力
+      const testTypeSelect = document.getElementById("testTypeSelect"); // 新しいテストタイプ選択
+      const generateTestButton = document.getElementById("generateTestButton");
+      const testMessageBox = document.getElementById("testMessageBox");
+      const testTable = document.getElementById("testTable");
+      const testTableHeader = document.getElementById("testTableHeader"); // 新しいテーブルヘッダー
+      const testTableBody = document.getElementById("testTableBody");
+      const checkAnswersButton = document.getElementById("checkAnswersButton");
+      const noTestWordsMessage = document.getElementById("noTestWordsMessage");
+
+      // DOM要素の取得 - ナビゲーションボタン
+      const showLearningViewButton = document.getElementById(
+        "showLearningViewButton"
+      );
+      const showAddWordViewButton = document.getElementById(
+        "showAddWordViewButton"
+      );
+      const showWordListViewButton = document.getElementById(
+        "showWordListViewButton"
+      );
+      const showWordEditViewButton = document.getElementById(
+        "showWordEditViewButton"
+      );
+      const showTestByRangeViewButton = document.getElementById(
+        "showTestByRangeViewButton"
+      );
+
+      /**
+       * アプリを初期化し、保存された学習データをロードまたは新規作成します。
+       */
+      function initializeApp() {
+        loadProgress();
+        if (words.length === 0) {
+          // 初回アクセスの場合、初期データから単語をロード
+          words = initialWordsData.map((word) => ({
+            ...word,
+            easeFactor: 2.5, // 記憶のしやすさ係数 (SM-2アルゴリズムの初期値)
+            interval: 0, // 次の復習までの間隔（日数）
+            dueDate: new Date(), // 次の復習日
+            repetitions: 0, // 正解した回数
+            status: "new", // 'new', 'learning', 'mastered'
+          }));
+        }
+        // BGMボタンの取得と初期設定
+        bgmToggleButton = document.getElementById("bgmToggleButton");
+        bgmToggleButton.addEventListener("click", toggleBGM);
+        loadBGMState(); // 保存されたBGMの状態をロード
+        setupBGM(); // Tone.jsのBGMを設定
+
+        displayLearningView(); // 初期表示は学習モード
+      }
+
+      /**
+       * 進捗データをlocalStorageからロードします。
+       */
+      function loadProgress() {
+        try {
+          const storedProgress = localStorage.getItem(STORAGE_KEY);
+          if (storedProgress) {
+            const parsedProgress = JSON.parse(storedProgress);
+            words = parsedProgress.map((word) => ({
+              ...word,
+              dueDate: new Date(word.dueDate), // 日付文字列をDateオブジェクトに変換
+            }));
+            console.log("学習データをロードしました。");
+          }
+        } catch (e) {
+          console.error("学習データのロード中にエラーが発生しました:", e);
+          // エラーが発生した場合、データをリセットするか、ユーザーに通知するなどの処理を検討
+        }
+      }
+
+      /**
+       * 進捗データをlocalStorageに保存します。
+       */
+      function saveProgress() {
+        try {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(words));
+          console.log("学習データを保存しました。");
+        } catch (e) {
+          console.error("学習データの保存中にエラーが発生しました:", e);
+        }
+      }
+
+      /**
+       * BGMの状態 (ON/OFF) をlocalStorageに保存します。
+       */
+      function saveBGMState() {
+        localStorage.setItem(BGM_STATE_KEY, JSON.stringify(isBgmPlaying));
+      }
+
+      /**
+       * BGMの状態 (ON/OFF) をlocalStorageからロードします。
+       */
+      function loadBGMState() {
+        const storedBGMState = localStorage.getItem(BGM_STATE_KEY);
+        if (storedBGMState !== null) {
+          isBgmPlaying = JSON.parse(storedBGMState);
+          updateBGMButtonText();
+        }
+      }
+
+      /**
+       * BGMをセットアップします。MP3ファイルをロードする代わりに、Tone.jsでシンプルな音を生成します。
+       * MP3ファイルをロードする際は、Tone.Playerを使用します。
+       */
+      function setupBGM() {
+        // Synthのインスタンスを作成 (BGMの機構として、今回はシンプルなシンセサイザーの音を使用)
+        // 実際のMP3ファイルを使用する場合は、Tone.Playerを使用
+        // player = new Tone.PolySynth(Tone.Synth, {
+        //   oscillator: {
+        //     type: "sine", // 穏やかなサイン波に変更
+        //   },
+        //   envelope: {
+        //     attack: 0.05,
+        //     decay: 0.5,
+        //     sustain: 0.6,
+        //     release: 1.2,
+        //   },
+        // }).toDestination();
+
+        // // 適当なコード進行をループで再生 (Cmaj7 - Fmaj7 - G7 - Cmaj7)
+        // const part = new Tone.Part(
+        //   (time, note) => {
+        //     player.triggerAttackRelease(note, "2n", time); // 音の長さを調整
+        //   },
+        //   [
+        //     ["0:0:0", ["C4", "E4", "G4", "B4"]], // Cmaj7
+        //     ["0:1:0", ["F4", "A4", "C5", "E5"]], // Fmaj7
+        //     ["0:2:0", ["G4", "B4", "D5", "F5"]], // G7
+        //     ["0:3:0", ["C4", "E4", "G4", "C5"]], // Cmaj7
+        //   ]
+        // ).start(0);
+
+        // part.loop = true;
+        // part.loopEnd = "4m"; // 4小節でループ
+
+        // 後でMP3ファイルを追加する場合の例 (コメントアウトしてあります)
+
+        player = new Tone.Player({
+          url: "./1.mp3", // ここにMP3ファイルのパスを指定
+          loop: true,
+          autostart: false, // 自動再生はさせない
+          volume: -10, // ボリューム調整
+        }).toDestination();
+
+        // isBgmPlayingがtrueであれば、ユーザーが操作するタイミングで再生を開始する
+        // Tone.jsはユーザー操作なしでは音を鳴らせないため、
+        // BGMボタンのクリック時にTone.start()を呼ぶようにします。
+      }
+
+      /**
+       * BGMの再生/一時停止を切り替えます。
+       */
+      async function toggleBGM() {
+        // Tone.jsのオーディオコンテキストを初期化（初回のみ必要）
+        if (Tone.context.state !== "running") {
+          await Tone.start();
+          console.log("AudioContext is running");
+        }
+
+        if (isBgmPlaying) {
+          // Tone.Transport (Partを制御する場合) または player.stop() (Playerを制御する場合)
+          if (player instanceof Tone.PolySynth) {
+            Tone.Transport.stop();
+          } else if (player instanceof Tone.Player) {
+            player.stop();
+          }
+          isBgmPlaying = false;
+          console.log("BGM stopped");
+        } else {
+          // Tone.Transport (Partを制御する場合) または player.start() (Playerを制御する場合)
+          if (player instanceof Tone.PolySynth) {
+            Tone.Transport.start();
+          } else if (player instanceof Tone.Player) {
+            player.start();
+          }
+          isBgmPlaying = true;
+          console.log("BGM started");
+        }
+        updateBGMButtonText();
+        saveBGMState();
+      }
+
+      /**
+       * BGMボタンのテキストを更新します。
+       */
+      function updateBGMButtonText() {
+        if (bgmToggleButton) {
+          bgmToggleButton.textContent = `BGM ${isBgmPlaying ? "OFF" : "ON"}`;
+        }
+      }
+
+      /**
+       * 次に表示する単語を選択し、画面に表示します。
+       * スペーシング効果に基づいて、復習期限が過ぎている単語を優先します。
+       */
+      function displayNextWord() {
+        // 現在時刻
+        const now = new Date();
+
+        // 復習期限が過ぎている単語、または新規単語をフィルタリング
+        const overdueWords = words.filter(
+          (word) => word.dueDate <= now || word.status === "new"
+        );
+
+        let nextWord = null;
+
+        if (overdueWords.length > 0) {
+          // 復習期限が最も古い単語を優先
+          overdueWords.sort(
+            (a, b) => a.dueDate.getTime() - b.dueDate.getTime()
+          );
+          nextWord = overdueWords[0];
+          currentWordIndex = words.findIndex((w) => w.No === nextWord.No); // 元の配列でのインデックスを更新
+        } else {
+          // 全ての単語が復習期限前の場合、最も復習期限が近い単語を選択
+          words.sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime());
+          nextWord = words[0];
+          currentWordIndex = words.findIndex((w) => w.No === nextWord.No);
+
+          // 全ての単語が習得済みの場合
+          if (words.every((word) => word.status === "mastered")) {
+            wordDisplay.textContent = "全ての単語を習得しました！🎉";
+            definitionsDisplay.innerHTML =
+              "もう一度学習するには、ページをリロードするか、新しい単語を追加してください。";
+            definitionsDisplay.classList.remove("hidden");
+            showAnswerButton.classList.add("hidden");
+            actionButtons.classList.add("hidden");
+            progressText.textContent = "";
             return;
+          }
         }
 
-        const headers = lines[0].split(',');
-        const jsonArray = [];
+        if (nextWord) {
+          wordDisplay.textContent = nextWord["単語"];
+          let defText = "";
+          // 各品詞の意味を整形して表示
+          if (nextWord["名詞"]) defText += `名詞: ${nextWord["名詞"]}<br>`;
+          if (nextWord["動詞"]) defText += `動詞: ${nextWord["動詞"]}<br>`;
+          if (nextWord["形容詞"])
+            defText += `形容詞: ${nextWord["形容詞"]}<br>`;
+          if (nextWord["副詞"]) defText += `副詞: ${nextWord["副詞"]}<br>`;
+          if (nextWord["前置詞"])
+            defText += `前置詞: ${nextWord["前置詞"]}<br>`;
+          if (nextWord["接続詞"])
+            defText += `接続詞: ${nextWord["接続詞"]}<br>`;
+          definitionsDisplay.innerHTML = defText || "（意味なし）"; // 意味がない場合
+          definitionsDisplay.classList.add("hidden"); // 最初は意味を隠す
+          showAnswerButton.classList.remove("hidden");
+          actionButtons.classList.add("hidden"); // 解答前はボタンを隠す
+          updateProgressText();
+        } else {
+          wordDisplay.textContent =
+            "単語がありません。新しい単語を追加してください。";
+          definitionsDisplay.classList.add("hidden");
+          showAnswerButton.classList.add("hidden");
+          actionButtons.classList.add("hidden");
+          progressText.textContent = "";
+        }
+      }
 
-        for (let i = 1; i < lines.length; i++) {
-            const currentLine = lines[i].split(',');
-            if (currentLine.length === headers.length) {
-                const jsonObject = {};
-                for (let j = 0; j < headers.length; j++) {
-                    jsonObject[headers[j].trim()] = currentLine[j].trim();
-                }
-                jsonArray.push(jsonObject);
-            } else if (currentLine.length > 0) {
-                outputElement.textContent = `Error: Line ${i + 1} has a different number of columns than the header.`;
-                return;
+      /**
+       * 解答を表示し、評価ボタンを表示します。
+       */
+      function showAnswer() {
+        definitionsDisplay.classList.remove("hidden");
+        showAnswerButton.classList.add("hidden");
+        actionButtons.classList.remove("hidden");
+      }
+
+      /**
+       * 単語の学習状態を更新します（SM-2アルゴリズムに基づく簡略版）。
+       * @param {boolean} isCorrect - 正解したかどうか。
+       */
+      function updateWordProgress(isCorrect) {
+        const word = words[currentWordIndex];
+        const now = new Date();
+
+        if (isCorrect) {
+          // 正解の場合
+          word.repetitions++;
+          word.interval =
+            word.repetitions === 1
+              ? 1
+              : word.repetitions === 2
+              ? 6
+              : Math.round(word.interval * word.easeFactor);
+          // 品質5（完璧に覚えた）を仮定してeaseFactorを更新
+          word.easeFactor += 0.1 - (5 - 3) * (0.08 + (5 - 3) * 0.02);
+          if (word.easeFactor > 5) word.easeFactor = 5; // easeFactorの上限
+
+          // 完全に習得済みと判断する条件
+          if (word.repetitions >= 3 && word.interval >= 20) {
+            // 例: 3回以上正解し、かつ間隔が20日以上の場合
+            word.status = "mastered";
+          } else {
+            word.status = "learning";
+          }
+        } else {
+          // 不正解の場合
+          word.repetitions = 0; // 繰り返し回数をリセット
+          word.interval = 1; // 間隔をリセット (1日後には復習)
+          word.easeFactor = Math.max(1.3, word.easeFactor - 0.2); // easeFactorの最小値は1.3
+          word.status = "learning"; // 不正解でも学習中とする
+        }
+
+        // 次の復習日を設定
+        word.dueDate.setDate(now.getDate() + word.interval);
+
+        saveProgress(); // 進捗を保存
+        displayNextWord(); // 次の単語を表示
+      }
+
+      /**
+       * 進捗テキストを更新します。
+       * 例: 「未学習: X | 学習中: Y | 習得済み: Z / 総数: N」
+       */
+      function updateProgressText() {
+        const newWordsCount = words.filter(
+          (word) => word.status === "new"
+        ).length;
+        const learningWordsCount = words.filter(
+          (word) => word.status === "learning"
+        ).length;
+        const masteredWordsCount = words.filter(
+          (word) => word.status === "mastered"
+        ).length;
+        const totalWords = words.length;
+
+        progressText.textContent = `未学習: ${newWordsCount} | 学習中: ${learningWordsCount} | 習得済み: ${masteredWordsCount} / ${totalWords} 単語`;
+      }
+
+      /**
+       * 全てのビューを非表示にします。
+       */
+      function hideAllViews() {
+        learningView.classList.add("hidden");
+        addWordView.classList.add("hidden");
+        wordListView.classList.add("hidden");
+        wordEditView.classList.add("hidden");
+        testByRangeView.classList.add("hidden");
+      }
+
+      /**
+       * 学習ビューを表示します。
+       */
+      function displayLearningView() {
+        hideAllViews();
+        learningView.classList.remove("hidden");
+        displayNextWord(); // 学習ビューに切り替わったら次の単語を表示
+      }
+
+      /**
+       * 単語追加ビューを表示します。
+       */
+      function displayAddWordView() {
+        hideAllViews();
+        addWordView.classList.remove("hidden");
+        messageBox.classList.add("hidden"); // メッセージボックスを非表示にする
+        addWordForm.reset(); // フォームをリセット
+        newWordInput.focus(); // 単語入力フィールドにフォーカスを当てる
+      }
+
+      /**
+       * 単語一覧ビューを表示し、単語リストを生成します。
+       */
+      function displayWordListView() {
+        hideAllViews();
+        wordListView.classList.remove("hidden");
+        wordListContent.innerHTML = ""; // 既存のリストをクリア
+
+        if (words.length === 0) {
+          noWordsMessage.classList.remove("hidden");
+          return;
+        } else {
+          noWordsMessage.classList.add("hidden");
+        }
+
+        // 単語を単語順でソート
+        // const sortedWords = [...words].sort((a, b) =>
+        //   a["No"].localeCompare(b["No"])
+        // );
+
+        const sortedWords = [...words];
+
+        sortedWords.forEach((word) => {
+          const wordItem = document.createElement("div");
+          wordItem.className = "word-list-item";
+
+          const n = document.createElement("h3");
+          n.textContent = word["No"];
+
+          const wordTitle = document.createElement("h3");
+          wordTitle.textContent = word["単語"];
+
+          wordItem.appendChild(n);
+          wordItem.appendChild(wordTitle);
+
+          const definitions = [
+            "名詞",
+            "動詞",
+            "形容詞",
+            "副詞",
+            "前置詞",
+            "接続詞",
+          ];
+          definitions.forEach((pos) => {
+            if (word[pos]) {
+              const p = document.createElement("p");
+              p.innerHTML = `<strong class="text-gray-700">${pos}</strong>: ${word[pos]}`;
+              wordItem.appendChild(p);
             }
+          });
+
+          const statusText = document.createElement("p");
+          statusText.className = "word-status";
+          statusText.textContent = `学習状況: ${getStatusText(
+            word.status
+          )} | 繰り返し回数: ${
+            word.repetitions
+          } | 次回復習日: ${word.dueDate.toLocaleDateString()}`;
+          wordItem.appendChild(statusText);
+
+          wordListContent.appendChild(wordItem);
+        });
+      }
+
+      /**
+       * 単語編集ビューを表示し、編集可能なテーブルを生成します。
+       */
+      function displayWordEditView() {
+        hideAllViews();
+        wordEditView.classList.remove("hidden");
+        wordEditTableBody.innerHTML = ""; // 既存のテーブル内容をクリア
+
+        if (words.length === 0) {
+          noWordsEditMessage.classList.remove("hidden");
+          return;
+        } else {
+          noWordsEditMessage.classList.add("hidden");
         }
 
-        outputElement.textContent = JSON.stringify(jsonArray, null, 2);
-    };
+        // 単語を単語順でソート
+        const sortedWords = [...words].sort((a, b) =>
+          a["単語"].localeCompare(b["単語"])
+        );
 
-    reader.onerror = function() {
-        outputElement.textContent = 'Error reading the CSV file.';
-    };
+        sortedWords.forEach((word) => {
+          const row = document.createElement("tr");
+          row.dataset.wordNo = word.No; // データ属性に単語のNoを保存
 
-    reader.readAsArrayBuffer(file);
-}
-</script>
+          const cells = [
+            "単語",
+            "名詞",
+            "動詞",
+            "形容詞",
+            "副詞",
+            "前置詞",
+            "接続詞",
+          ];
+          cells.forEach((key) => {
+            const cell = document.createElement("td");
+            const input = document.createElement("input");
+            input.type = "text";
+            input.value = word[key] || "";
+            input.dataset.key = key; // どの品詞か識別するためのデータ属性
+            cell.appendChild(input);
+            row.appendChild(cell);
+          });
 
-</body>
+          // 操作ボタンセル
+          const actionsCell = document.createElement("td");
+          const saveButton = document.createElement("button");
+          saveButton.textContent = "保存";
+          saveButton.className = "edit-button save-button";
+          saveButton.addEventListener("click", () =>
+            saveEditedWord(word.No, row)
+          );
+
+          const deleteButton = document.createElement("button");
+          deleteButton.textContent = "削除";
+          deleteButton.className = "edit-button delete-button";
+          deleteButton.addEventListener("click", () => deleteWord(word.No));
+
+          const buttonsDiv = document.createElement("div");
+          buttonsDiv.className = "edit-buttons";
+          buttonsDiv.appendChild(saveButton);
+          buttonsDiv.appendChild(deleteButton);
+          actionsCell.appendChild(buttonsDiv);
+          row.appendChild(actionsCell);
+
+          wordEditTableBody.appendChild(row);
+        });
+      }
+
+      /**
+       * 範囲指定テストビューを表示します。
+       */
+      function displayTestByRangeView() {
+        hideAllViews();
+        testByRangeView.classList.remove("hidden");
+        testTable.classList.add("hidden"); // テストテーブルを非表示に
+        checkAnswersButton.classList.add("hidden"); // 答え合わせボタンを非表示に
+        noTestWordsMessage.classList.add("hidden"); // メッセージを非表示に
+        testMessageBox.classList.add("hidden"); // メッセージボックスを非表示に
+        testTableBody.innerHTML = ""; // 以前のテスト結果をクリア
+      }
+
+      /**
+       * 単語の学習状況のステータスを日本語で返します。
+       * @param {string} status - 単語のステータス
+       * @returns {string} 日本語のステータス文字列
+       */
+      function getStatusText(status) {
+        switch (status) {
+          case "new":
+            return "未学習";
+          case "learning":
+            return "学習中";
+          case "mastered":
+            return "習得済み";
+          default:
+            return status;
+        }
+      }
+
+      /**
+       * 新しい単語を単語リストに追加します。
+       * @param {Event} event - フォーム送信イベント
+       */
+      function addWord(event) {
+        event.preventDefault(); // フォームのデフォルト送信を防止
+
+        const newWordValue = newWordInput.value.trim();
+        if (!newWordValue) {
+          showMessage("単語は必須です。", "error", messageBox);
+          return;
+        }
+
+        // 重複チェック (大文字小文字を区別しない)
+        const isDuplicate = words.some(
+          (word) => word["単語"].toLowerCase() === newWordValue.toLowerCase()
+        );
+        if (isDuplicate) {
+          showMessage("この単語はすでに存在します。", "error", messageBox);
+          return;
+        }
+
+        // 新しいNoを生成 (既存のNoの最大値+1)
+        const maxNo = words.reduce(
+          (max, word) => Math.max(max, parseInt(word.No || 0)),
+          0
+        );
+        const newNo = (maxNo + 1).toString();
+
+        const newWord = {
+          No: newNo,
+          単語: newWordValue,
+          名詞: newNounInput.value.trim(),
+          動詞: newVerbInput.value.trim(),
+          形容詞: newAdjectiveInput.value.trim(),
+          副詞: newAdverbInput.value.trim(),
+          前置詞: newPrepositionInput.value.trim(),
+          接続詞: newConjunctionInput.value.trim(),
+          easeFactor: 2.5,
+          interval: 0,
+          dueDate: new Date(),
+          repetitions: 0,
+          status: "new",
+        };
+
+        words.push(newWord);
+        saveProgress();
+        showMessage("単語が追加されました！", "success", messageBox);
+        addWordForm.reset(); // フォームをクリア
+        updateProgressText(); // 進捗表示を更新
+      }
+
+      /**
+       * 単語の編集内容を保存します。
+       * @param {string} wordNo - 編集する単語のNo
+       * @param {HTMLElement} rowElement - 該当するテーブル行のDOM要素
+       */
+      function saveEditedWord(wordNo, rowElement) {
+        const wordIndex = words.findIndex((w) => w.No === wordNo);
+        if (wordIndex === -1) {
+          showMessage("単語が見つかりません。", "error", editMessageBox);
+          return;
+        }
+
+        const currentWord = words[wordIndex];
+        const inputs = rowElement.querySelectorAll('input[type="text"]');
+        let updatedWord = { ...currentWord }; // 既存の単語のコピー
+
+        let isWordChanged = false;
+        let newWordValue = "";
+
+        inputs.forEach((input) => {
+          const key = input.dataset.key;
+          if (key === "単語") {
+            newWordValue = input.value.trim();
+          }
+          if (updatedWord[key] !== input.value.trim()) {
+            updatedWord[key] = input.value.trim();
+            isWordChanged = true;
+          }
+        });
+
+        // 単語（"単語"フィールド）の重複チェック
+        if (newWordValue !== currentWord["単語"]) {
+          // 単語名が変更された場合のみチェック
+          const isDuplicate = words.some(
+            (word) =>
+              word.No !== wordNo &&
+              word["単語"].toLowerCase() === newWordValue.toLowerCase()
+          );
+          if (isDuplicate) {
+            showMessage(
+              "変更後の単語はすでに存在します。",
+              "error",
+              editMessageBox
+            );
+            return;
+          }
+        }
+
+        if (isWordChanged) {
+          words[wordIndex] = updatedWord; // 更新された単語で置き換え
+          saveProgress();
+          showMessage("単語が保存されました！", "success", editMessageBox);
+          // 保存後、テーブルを再描画して最新の状態を反映
+          displayWordEditView();
+        } else {
+          showMessage("変更はありません。", "info", editMessageBox);
+        }
+      }
+
+      /**
+       * 単語を削除します。
+       * @param {string} wordNo - 削除する単語のNo
+       */
+      function deleteWord(wordNo) {
+        const initialLength = words.length;
+        words = words.filter((word) => word.No !== wordNo);
+        if (words.length < initialLength) {
+          saveProgress();
+          showMessage("単語が削除されました。", "success", editMessageBox);
+          displayWordEditView(); // 削除後、テーブルを再描画
+          updateProgressText(); // 進捗表示を更新
+        } else {
+          showMessage("単語が見つかりませんでした。", "error", editMessageBox);
+        }
+      }
+
+      /**
+       * メッセージボックスを表示します。
+       * @param {string} message - 表示するメッセージ
+       * @param {string} type - 'success', 'error', or 'info'
+       * @param {HTMLElement} targetMessageBox - メッセージを表示するDOM要素
+       */
+      function showMessage(message, type, targetMessageBox) {
+        targetMessageBox.textContent = message;
+        targetMessageBox.classList.remove("hidden");
+        if (type === "success") {
+          targetMessageBox.className =
+            "message-box bg-green-100 text-green-700 border-green-300";
+        } else if (type === "error") {
+          targetMessageBox.className =
+            "message-box bg-red-100 text-red-700 border-red-300";
+        } else if (type === "info") {
+          targetMessageBox.className =
+            "message-box bg-blue-100 text-blue-700 border-blue-300";
+        }
+        // 3秒後にメッセージを非表示にする
+        setTimeout(() => {
+          targetMessageBox.classList.add("hidden");
+        }, 3000);
+      }
+
+      /**
+       * 配列をシャッフルするユーティリティ関数（Fisher-Yatesシャッフル）
+       * @param {Array} array - シャッフルする配列
+       * @returns {Array} シャッフルされた配列
+       */
+      function shuffleArray(array) {
+        for (let i = array.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [array[i], array[j]] = [array[j], array[i]];
+        }
+        return array;
+      }
+
+      /**
+       * 指定された範囲でテストを生成し、テーブルに表示します。
+       */
+      function generateTest() {
+        const start = parseInt(startNoInput.value);
+        const end = parseInt(endNoInput.value);
+        const requestedQuestions = parseInt(numberOfQuestionsInput.value); // 出題数
+        const testType = testTypeSelect.value; // 'definitionToWord' or 'wordToDefinition'
+
+        if (isNaN(start) || isNaN(end) || start < 1 || end < 1 || start > end) {
+          showMessage(
+            "有効な範囲を開始Noと終了Noに入力してください。",
+            "error",
+            testMessageBox
+          );
+          testTable.classList.add("hidden");
+          checkAnswersButton.classList.add("hidden");
+          noTestWordsMessage.classList.add("hidden");
+          return;
+        }
+        if (isNaN(requestedQuestions) || requestedQuestions < 1) {
+          showMessage(
+            "有効な出題数を入力してください（1以上）。",
+            "error",
+            testMessageBox
+          );
+          testTable.classList.add("hidden");
+          checkAnswersButton.classList.add("hidden");
+          noTestWordsMessage.classList.add("hidden");
+          return;
+        }
+
+        const filteredWords = words.filter(
+          (word) => parseInt(word.No) >= start && parseInt(word.No) <= end
+        );
+
+        testTableBody.innerHTML = ""; // 以前のテスト結果をクリア
+        testMessageBox.classList.add("hidden"); // メッセージを非表示に
+
+        if (filteredWords.length === 0) {
+          noTestWordsMessage.classList.remove("hidden");
+          testTable.classList.add("hidden");
+          checkAnswersButton.classList.add("hidden");
+          return;
+        } else {
+          noTestWordsMessage.classList.add("hidden");
+        }
+
+        // ランダムに単語を選択
+        const shuffledWords = shuffleArray([...filteredWords]);
+        const testWords = shuffledWords.slice(
+          0,
+          Math.min(requestedQuestions, shuffledWords.length)
+        );
+
+        // テーブルヘッダーを動的に設定
+        testTableHeader.innerHTML = "";
+        const headerCells = ["No"];
+        if (testType === "definitionToWord") {
+          headerCells.push("品詞と意味 (問題)");
+          headerCells.push("単語 (あなたの解答)");
+        } else {
+          // wordToDefinition
+          headerCells.push("単語 (問題)");
+          headerCells.push("品詞と意味 (あなたの解答)");
+        }
+        headerCells.push("結果");
+
+        headerCells.forEach((text) => {
+          const th = document.createElement("th");
+          th.textContent = text;
+          testTableHeader.appendChild(th);
+        });
+
+        testWords.forEach((word) => {
+          const row = document.createElement("tr");
+          row.dataset.wordNo = word.No;
+
+          // No
+          const noCell = document.createElement("td");
+          noCell.textContent = word.No;
+          row.appendChild(noCell);
+
+          // 問題セル
+          const questionCell = document.createElement("td");
+          // 解答入力セル
+          const userAnswerCell = document.createElement("td");
+
+          // 品詞と意味の文字列を生成するヘルパー関数
+          const getDefinitionString = (w) => {
+            let defText = "";
+            const definitionsKeys = [
+              "名詞",
+              "動詞",
+              "形容詞",
+              "副詞",
+              "前置詞",
+              "接続詞",
+            ];
+            definitionsKeys.forEach((pos) => {
+              if (w[pos]) {
+                if (defText !== "") defText += "<br>";
+                defText += `<strong class="text-gray-700">${pos}</strong>: ${w[pos]}`;
+              }
+            });
+            return defText || "（意味なし）";
+          };
+
+          if (testType === "definitionToWord") {
+            // 問題：品詞と意味、解答：単語
+            questionCell.innerHTML = getDefinitionString(word);
+            const userAnswerInput = document.createElement("input");
+            userAnswerInput.type = "text";
+            userAnswerInput.className = "user-answer-input";
+            userAnswerInput.placeholder = "単語を入力";
+            userAnswerCell.appendChild(userAnswerInput);
+            row.dataset.correctAnswer = word["単語"].toLowerCase(); // 正解をデータ属性に保存
+          } else {
+            // wordToDefinition
+            // 問題：単語、解答：品詞と意味
+            questionCell.textContent = word["単語"];
+            const userAnswerInput = document.createElement("textarea"); // 長い解答のためにtextarea
+            userAnswerInput.rows = 2; // 高さの調整
+            userAnswerInput.className = "user-answer-input";
+            userAnswerInput.placeholder = "品詞と意味を入力";
+            userAnswerCell.appendChild(userAnswerInput);
+            // 品詞と意味の正解は、複数の形式が考えられるため、単純な比較は難しい。
+            // ここでは、定義文字列全体を厳密に比較するため、前処理を考慮する。
+            // 実際には、キーワードマッチングや部分一致など、より柔軟なロジックが必要。
+            row.dataset.correctAnswer = getDefinitionString(word)
+              .replace(/<br>/g, " ")
+              .replace(/<strong>|<\/strong>/g, "")
+              .replace(/:/g, "")
+              .replace(/（意味なし）/, "")
+              .trim()
+              .toLowerCase();
+          }
+
+          row.appendChild(questionCell);
+          row.appendChild(userAnswerCell);
+
+          // 結果
+          const resultCell = document.createElement("td");
+          resultCell.className = "test-result-cell";
+          row.appendChild(resultCell);
+
+          testTableBody.appendChild(row);
+        });
+
+        testTable.classList.remove("hidden");
+        checkAnswersButton.classList.remove("hidden");
+      }
+
+      /**
+       * ユーザーの解答をチェックし、結果を表示します。
+       */
+      function checkAnswers() {
+        const rows = testTableBody.querySelectorAll("tr");
+        let allCorrect = true;
+        const testType = testTypeSelect.value;
+
+        rows.forEach((row) => {
+          const wordNo = row.dataset.wordNo;
+          const word = words.find((w) => w.No === wordNo);
+          const userAnswerInput = row.querySelector(".user-answer-input");
+          const resultCell = row.querySelector(".test-result-cell");
+
+          const userAnswer = userAnswerInput.value.trim().toLowerCase();
+          const correctAnswer = row.dataset.correctAnswer; // データ属性から正解を取得
+
+          resultCell.innerHTML = ""; // 結果をリセット
+          resultCell.classList.remove("result-correct", "result-incorrect");
+
+          let isCorrect = false;
+
+          if (testType === "definitionToWord") {
+            // 意味 → 単語のテスト
+            isCorrect = userAnswer === correctAnswer;
+          } else {
+            // wordToDefinition
+            // 単語 → 意味のテスト
+            // 品詞と意味の比較は非常に厳密（完全一致）
+            // 実際には、より柔軟な比較ロジック（キーワード抽出、部分一致など）が必要になる
+            // ここでは、スペースやHTMLタグを除去した文字列で比較
+            isCorrect = userAnswer === correctAnswer;
+          }
+
+          if (isCorrect) {
+            resultCell.textContent = "正解！";
+            resultCell.classList.add("result-correct");
+          } else {
+            allCorrect = false;
+            resultCell.textContent = "不正解";
+            resultCell.classList.add("result-incorrect");
+
+            const correctAnswerDisplay = document.createElement("div");
+            correctAnswerDisplay.className = "correct-answer-display";
+            if (testType === "definitionToWord") {
+              correctAnswerDisplay.textContent = `正解: ${word["単語"]}`;
+            } else {
+              // wordToDefinition
+              let defText = "";
+              const definitionsKeys = [
+                "名詞",
+                "動詞",
+                "形容詞",
+                "副詞",
+                "前置詞",
+                "接続詞",
+              ];
+              definitionsKeys.forEach((pos) => {
+                if (word[pos]) {
+                  if (defText !== "") defText += " / "; // 品詞ごとにスラッシュで区切る
+                  defText += `${pos}: ${word[pos]}`;
+                }
+              });
+              correctAnswerDisplay.textContent = `正解: ${
+                defText || "（意味なし）"
+              }`;
+            }
+            resultCell.appendChild(correctAnswerDisplay);
+          }
+        });
+
+        if (allCorrect) {
+          showMessage(
+            "全ての単語に正解しました！素晴らしい！",
+            "success",
+            testMessageBox
+          );
+        } else {
+          showMessage(
+            "まだ練習が必要です。不正解の単語を確認しましょう。",
+            "info",
+            testMessageBox
+          );
+        }
+      }
+
+      // イベントリスナーの設定
+      showAnswerButton.addEventListener("click", showAnswer);
+      easyButton.addEventListener("click", () => updateWordProgress(true));
+      hardButton.addEventListener("click", () => updateWordProgress(false));
+      addWordForm.addEventListener("submit", addWord);
+
+      showLearningViewButton.addEventListener("click", displayLearningView);
+      showAddWordViewButton.addEventListener("click", displayAddWordView);
+      showWordListViewButton.addEventListener("click", displayWordListView);
+      showWordEditViewButton.addEventListener("click", displayWordEditView);
+      showTestByRangeViewButton.addEventListener(
+        "click",
+        displayTestByRangeView
+      );
+
+      generateTestButton.addEventListener("click", generateTest);
+      checkAnswersButton.addEventListener("click", checkAnswers);
+
+      // 初期化
+      initializeApp();
+    </script>
+  </body>
 </html>
