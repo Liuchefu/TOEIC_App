@@ -1,11 +1,11 @@
 const CACHE_NAME = 'my-offline-cache-v1';
 const urlsToCache = [
-  '/',
-  '/index.html',
-  '/manifest.json',
-  '/icon-192x192.png',
-  '/icon-512x512.png',
-  '/1.mp3',
+  './',
+  './index.html',
+  './manifest.json',
+  './icon-192x192.png',
+  './icon-512x512.png',
+  './1.mp3',
   // 他にキャッシュしたいファイルがあればここに追加
 ];
 
