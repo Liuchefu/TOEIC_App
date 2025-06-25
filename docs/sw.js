@@ -1,16 +1,14 @@
 const CACHE_NAME = 'my-offline-cache-v1';
 const urlsToCache = [
-  '/', // ルートパス (多くの場合、index.htmlにリダイレクトされる)
-  '/index.html',
-  '/manifest.json',
-  '/icon-192x192.png',
-  '/icon-512x512.png',
+  './', // ルートパス (多くの場合、index.htmlにリダイレクトされる)
+  './index.html',
+  './manifest.json',
+  './icon-192x192.png',
+  './icon-512x512.png',
+  './sw.js'
   // オフラインで使用したいCSSファイルを追加
-  '/style.css', 
   // オフラインで使用したいJavaScriptファイルを追加
-  '/script.js', 
   // オフラインで使用したい画像ファイルを追加
-  '/images/background.jpg' 
 ];
 
 self.addEventListener('install', (event) => {
