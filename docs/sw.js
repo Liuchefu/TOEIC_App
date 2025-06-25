@@ -1,6 +1,6 @@
-const CACHE_NAME = 'my-offline-cache-v1';
+const CACHE_NAME = 'my-offline-cache-v2';
 const urlsToCache = [
-  '/TOEIC_App', // ルートパス (多くの場合、index.htmlにリダイレクトされる)
+  './', // ルートパス (多くの場合、index.htmlにリダイレクトされる)
   './index.html',
   './manifest.json',
   './icon-192x192.png',
